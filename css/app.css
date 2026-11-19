@@ -417,7 +417,6 @@ select.sel.sm { padding-right: 28px; }
 .chips .num { min-height: 38px; border-radius: var(--r); }
 /* phones: chips in one line you swipe sideways (the stage keeps its height); tempo steps a bit narrower */
 @media (max-width: 759px) {
-  .chips { margin: 0 -14px; padding: 2px 14px; }
   .tempo { gap: 4px; }
   .step { min-width: 36px; padding: 0 4px; font-size: 15px; }
   .bpm-c { min-width: 90px; }
@@ -477,12 +476,11 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .chips { justify-content: flex-start; }
 .chips::before, .chips::after { content: ''; flex: none; } /* spacers: centred while it fits, scrollable from the start when it does not */
 .chips::before { margin-left: auto; } .chips::after { margin-right: auto; }
-.chips:empty, .chips:not(:has(> :not([hidden]):not(.dd:has(> select[hidden])))) { display: none; }
+.chips:empty { display: none; } /* narrow screens move every chip into the left group */
 @media (min-width: 1100px) {
   .ctl-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 20px; }
   .stage .run-row { order: 0; }
   .chips.left::after, .chips.right::before, .chips.right::after { margin: 0; } /* left group hugs the controls from the right, right group from the left */
-  .chips:not(:has(> :not([hidden]):not(.dd:has(> select[hidden])))) { display: flex; } /* keep the grid cell so the controls stay centred */
 }
 .sheet:not(.own-start) .sheet-head .start { display: none; } /* see soloStart() in practice.js */
 /* small desktops: a tighter control row so even every option on stays on one line without scrolling */
@@ -495,4 +493,15 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
   .chips select.sel, .chip-tg, .practice-chip { font-size: 13px; }
   .chips select.sel { padding: 0 26px 0 10px; background-position: right 9px center; }
   .chip-tg, .practice-chip { padding: 0 11px; }
+}
+/* phones: the tab fills the screen between header and tab bar, the stage takes what is left (never squashed below 340px) */
+@media (max-width: 759px) {
+  .wrap { padding-bottom: calc(var(--nav-h) + var(--safe-b) + 16px); } /* nothing ends up under the fixed tab bar */
+  .metro { min-height: calc(100svh - 41px - var(--nav-h) - var(--safe-b) - 16px); }
+  .stage { flex: 1 1 auto; height: auto; min-height: 340px; }
+}
+/* below 1100px every chip stays visible: they wrap onto centred lines under the controls (nothing hidden behind a sideways scroll) */
+@media (max-width: 1099px) {
+  .chips { flex-wrap: wrap; justify-content: center; overflow: visible; row-gap: 8px; }
+  .chips::before, .chips::after { display: none; }
 }

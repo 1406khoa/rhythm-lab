@@ -113,11 +113,14 @@
     els.polySub = select('Chia lớp phụ', [[1, '♩ Lớp phụ không chia', '♩'], [2, '♪♪ Lớp phụ chia 2', '♪♪'], [3, '♪♪♪ Lớp phụ chia 3', '♪♪♪'], [4, '♬♬ Lớp phụ chia 4', '♬♬'], [6, '♬♬♬ Lớp phụ chia 6', '♬♬♬']], (v) => { cfg.poly.n = Number(v); RT.state.changed('poly'); });
     // one control row in the stage: setting chips left · Gõ ▶ Đếm số in the middle · setting chips right
     const chips = (cls, list) => h('div', { class: 'chips ' + cls }, ...list.map((el) => (el.tagName === 'SELECT' ? ui.dropdown(el) : el)));
-    els.bar = h('div', { class: 'ctl-bar' },
-      chips('left', [els.practice, els.sig, els.custom, els.sub, els.customN, els.swingSel, els.swingBox]),
-      els.run,
-      chips('right', [els.follow, els.polySel, els.polySub, els.listen]));
+    const left = chips('left', [els.practice, els.sig, els.custom, els.sub, els.customN, els.swingSel, els.swingBox]);
+    const right = chips('right', [els.follow, els.polySel, els.polySub, els.listen]), rightItems = [...right.children];
+    els.bar = h('div', { class: 'ctl-bar' }, left, els.run, right);
     stage.append(els.bar);
+    // wide screens: chips left · controls · chips right. Narrow: controls on top, ALL chips in one line under them
+    const wide = matchMedia('(min-width: 1100px)');
+    const arrange = () => { rightItems.forEach((el) => (wide.matches ? right : left).append(el)); if (els.fades) els.fades(); };
+    wide.addEventListener('change', arrange); arrange();
     document.addEventListener('pointerdown', (e) => {
       if (!editing || e.target.closest('.custom-sig, .chips .num, .chip-extra, .dd, .menu')) return;
       editing = null; refresh();
