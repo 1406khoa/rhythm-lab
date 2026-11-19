@@ -1,0 +1,107 @@
+/* Pure event model: config + position -> events. No audio, no DOM, no clock.
+ * Every event is returned, including the ones that will not sound, with `reason` saying why:
+ *   test | gap | beatMuted | followBeatMute | subMuted | randomBeat | randomSub | null (= sounds)
+ *
+ * Rulings (see README): BPM is the rate of the beat circles (one circle = one BPM tick), the
+ * denominator is a label only; swing delays the 2nd of each subdivision pair; vocal counts 1..12
+ * and "and" (duplet) - everything else falls back to a click. */
+(function () {
+  const RT = (window.RT = window.RT || {});
+
+  const SUBDIVS = { none: 1, duplet: 2, triplet: 3, quadruplet: 4, sextuplet: 6 };
+  const SWING_PRESETS = { straight: 50, septuplet: 57.1, quintuplet: 60, triplet: 66.7, dotted: 75 };
+  
+  const defaultLevels = (n) => Array.from({ length: n }, (_, i) => (i === 0 ? 2 : 1)); // 2 accent, 1 normal, 0 mute
+
+  function defaults() {
+    return {
+      bpm: 60, num: 4, den: 4,
+      levels: defaultLevels(4),
+      subdiv: { id: 'none', n: 1 },
+      subMask: [],               // index k -> false = that subdivision slot is muted
+      followBeatMute: false,
+      swing: { amount: 50 },
+      click: 'electronic',       // see RT.voices.CLICKS - always plays
+      voice: false,              // count the beats out loud on top of the click
+      vocal: { grouping: '' },   // see js/core/syllables.js
+      gap: { on: false, unit: 'measures', play: 2, silence: 2 },
+      random: { on: false, beatPct: 30, subPct: 0 },
+      form: { on: false, bpm: 60, bars: [{ num: 4, den: 4, levels: defaultLevels(4) }] },
+      seed: 1,
+      keepAwake: true,           // device preference, not used by buildEvents
+      test: null,                // { countIn: 8, silent: true } -> Test tab profile
+    };
+  }
+
+  const subCount = (cfg) => (cfg.subdiv.id === 'custom' ? RT.util.clamp(cfg.subdiv.n | 0, 2, 16) : SUBDIVS[cfg.subdiv.id] || 1);
+  const effBpm = (cfg) => (cfg.form.on && !cfg.test ? cfg.form.bpm : cfg.bpm);
+
+  function barInfo(cfg, barIdx) {
+    if (cfg.form.on && !cfg.test) {
+      const b = cfg.form.bars[barIdx % cfg.form.bars.length];
+      return { num: b.num, den: b.den, levels: b.levels };
+    }
+    return { num: cfg.num, den: cfg.den, levels: cfg.levels };
+  }
+
+  // fraction of a beat at which subdivision k of n starts
+  function subPos(k, n, ratio) {
+    if (n < 2 || ratio === 0.5 || k % 2 === 0) return k / n;
+    return (k - 1) / n + (2 / n) * ratio; // odd k: pair start + pairLen * ratio
+  }
+
+  const voiceFor = (cfg, num, kind, beat) => (cfg.voice && kind === 'beat' ? RT.syllables.voice(cfg, num, beat) : null);
+
+  // pos: { gIdx, barIdx, beat }   t0/dur in seconds
+  function beatEvents(cfg, pos, t0, dur) {
+    const { num, den, levels } = barInfo(cfg, pos.barIdx);
+    const n = subCount(cfg);
+    const ratio = cfg.swing.amount / 100;
+    const beatLevel = levels[pos.beat] == null ? 1 : levels[pos.beat];
+    const out = [];
+    for (let k = 0; k < n; k++) {
+      const kind = k === 0 ? 'beat' : 'sub';
+      const level = k === 0 ? beatLevel : 1;
+      const ev = { t: t0 + subPos(k, n, ratio) * dur, gIdx: pos.gIdx, bar: pos.barIdx, beat: pos.beat, sub: k, n, num, den,
+        kind, level, voice: voiceFor(cfg, num, kind, pos.beat), click: cfg.click, played: true, reason: null, tone: 'norm' };
+      ev.reason = reasonFor(cfg, ev, beatLevel);
+      ev.played = ev.reason === null;
+      if (cfg.test && pos.gIdx < cfg.test.countIn) ev.tone = 'hi';
+      out.push(ev);
+    }
+    return out;
+  }
+
+  function reasonFor(cfg, ev, beatLevel) {
+    if (cfg.test) return ev.gIdx < cfg.test.countIn || !cfg.test.silent ? (beatLevel === 0 ? 'beatMuted' : null) : 'test';
+    const g = cfg.gap;
+    if (g.on) {
+      const idx = g.unit === 'beats' ? ev.gIdx : ev.bar;
+      if (idx % (g.play + g.silence) >= g.play) return 'gap';
+    }
+    if (ev.kind === 'beat' && ev.level === 0) return 'beatMuted';
+    if (ev.kind === 'sub') {
+      if (cfg.followBeatMute && beatLevel === 0) return 'followBeatMute';
+      if (cfg.subMask[ev.sub] === false) return 'subMuted';
+    }
+    const r = cfg.random;
+    if (r.on) {
+      const pct = ev.kind === 'beat' ? r.beatPct : r.subPct;
+      if (pct > 0 && RT.util.rand01(cfg.seed, ev.gIdx, ev.sub, 0) * 100 < pct) return ev.kind === 'beat' ? 'randomBeat' : 'randomSub';
+    }
+    return null;
+  }
+
+  // Constant-tempo expansion for tests / offline render: nBeats beats from t0.
+  function build(cfg, nBeats, t0 = 0) {
+    const dur = 60 / effBpm(cfg), out = [];
+    let barIdx = 0, beat = 0;
+    for (let g = 0; g < nBeats; g++) {
+      out.push(...beatEvents(cfg, { gIdx: g, barIdx, beat }, t0 + g * dur, dur));
+      if (++beat >= barInfo(cfg, barIdx).num) { beat = 0; barIdx++; }
+    }
+    return out;
+  }
+
+  RT.events = { SUBDIVS, SWING_PRESETS, defaults, defaultLevels, subCount, effBpm, barInfo, subPos, beatEvents, build };
+})();
