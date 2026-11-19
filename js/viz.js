@@ -25,7 +25,7 @@
   const beats = []; // recent scheduled beats { t, dur, gIdx, bar, beat, num, played }
   RT.engine.on('schedule', (ev, dur) => {
     if (ev.kind !== 'beat') return;
-    beats.push({ t: ev.t, dur, gIdx: ev.gIdx, bar: ev.bar, beat: ev.beat, num: ev.num, played: ev.played });
+    beats.push({ t: ev.t, dur, gIdx: ev.gIdx, bar: ev.bar, beat: ev.beat, num: ev.num, played: ev.played, blind: RT.events.isBlind(ev) });
     if (beats.length > 32) beats.shift();
   });
   // clear on STOP: the engine commits beat 1 before it announces 'running', so clearing on start would lose it
@@ -267,7 +267,8 @@
   function frame() {
     raf = 0;
     if (!visible()) return;
-    render(RT.state.cfg.viz, RT.state.cfg, RT.engine.cfg === RT.state.cfg ? now() : null);
+    const T = RT.engine.cfg === RT.state.cfg ? now() : null;
+    render(RT.state.cfg.viz, RT.state.cfg, T && T.cur.blind ? null : T); // during a gap: a still picture, nothing to time against
     if (RT.engine.running) raf = requestAnimationFrame(frame);
   }
   const visible = () => canvas && RT.state.cfg.viz !== 'pads' && RT.state.tab === 'pulse' && document.visibilityState === 'visible' && canvas.clientWidth > 0;

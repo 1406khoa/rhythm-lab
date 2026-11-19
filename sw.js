@@ -18,6 +18,7 @@ const SHELL = [
   "js/tabs/practice.js",
   "js/tabs/pulse.js",
   "js/tabs/test.js",
+  "js/challenge.js",
   "js/core/engine.js",
   "js/core/events.js",
   "js/core/log.js",

@@ -42,8 +42,12 @@
       h('div', { class: 'line' }, h('div', {}, h('b', {}, 'Giữ màn hình sáng'), h('small', {}, supported ? 'Màn hình không tự khóa khi máy nhịp đang chạy' : 'Trình duyệt này không hỗ trợ')), els.awake));
     if (!supported) els.awake.disabled = true;
 
+    els.chOn = ui.toggle(cfg.challenge.on, (v) => { cfg.challenge.on = v; RT.state.changed('challenge'); }, 'Thử thách gõ');
+    const ch = h('div', { class: 'card' }, h('div', { class: 'cap row' }, 'Thử thách gõ', h('span', { class: 'grow' }), els.chOn),
+      h('p', { class: 'hint' }, 'Ở tab Máy nhịp hiện nút GÕ (hoặc phím Space). Khi click tắt (Ngắt quãng click hoặc Tắt ngẫu nhiên), tự đếm qua đoạn im rồi gõ đúng phách đầu tiên click quay lại. Không có đoạn im thì chấm phách 1 mỗi ô nhịp.'),
+      h('p', { class: 'hint' }, 'Chuẩn: lệch ≤ 3 ms · Gần: ≤ 25 ms · Lệch: ≤ 100 ms · Rushing / Dragging: sớm / trễ hơn 100 ms · Bỏ lỡ: không gõ.'));
     const run = h('div', { class: 'run-row center' }, ui.runButton(), h('kbd', {}, 'SPACE'));
-    root.append(h('div', { class: 'two-col even' }, gap, rnd), dev, run);
+    root.append(h('div', { class: 'two-col even' }, gap, rnd), ch, dev, run);
 
     refresh();
     RT.bus.on('cfg', refresh);
@@ -59,13 +63,14 @@
     if (!g.on) { els.pill.textContent = 'Đang chơi'; els.pill.className = 'status live'; return; }
     const idx = g.unit === 'beats' ? ev.gIdx : ev.bar, ph = idx % (g.play + g.silence), silent = ph >= g.play;
     const left = silent ? g.play + g.silence - ph : g.play - ph;
-    els.pill.textContent = (silent ? 'Đang im' : 'Đang chơi') + ' · còn ' + left + ' ' + (g.unit === 'beats' ? 'phách' : 'ô nhịp');
+    // no countdown while silent: it would tell the player when the click comes back
+    els.pill.textContent = silent ? 'Đang im · tự đếm tiếp' : 'Đang chơi · còn ' + left + ' ' + (g.unit === 'beats' ? 'phách' : 'ô nhịp') + ' rồi im';
     els.pill.className = 'status ' + (silent ? 'quiet' : 'live');
   }
 
   function refresh() {
     const g = cfg.gap, r = cfg.random;
-    els.gapOn.set(g.on); els.unit.set(g.unit); els.rndOn.set(r.on); els.awake.set(cfg.keepAwake);
+    els.gapOn.set(g.on); els.unit.set(g.unit); els.rndOn.set(r.on); els.awake.set(cfg.keepAwake); els.chOn.set(cfg.challenge.on);
     for (const e of [els.play, els.sil, els.rb, els.rs]) { e.input.value = e.obj[e.key]; e.val.textContent = e.obj[e.key]; }
     els.play.row.lastChild.textContent = g.unit === 'beats' ? 'phách' : 'ô nhịp';
     els.sil.row.lastChild.textContent = els.play.row.lastChild.textContent;

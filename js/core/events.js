@@ -31,6 +31,7 @@
       viz: 'pads',               // face display: pads | polygon | clock | ball | pendulum | lane
       seed: 1,
       keepAwake: true,           // device preference, not used by buildEvents
+      challenge: { on: false },  // tap challenge (js/challenge.js), not used by buildEvents
       test: null,                // { countIn: 8, silent: true } -> Test tab profile
     };
   }
@@ -122,5 +123,9 @@
     return out;
   }
 
-  RT.events = { SUBDIVS, SWING_PRESETS, defaults, defaultLevels, subCount, effBpm, barInfo, subPos, beatEvents, build };
+  // silences that are an exercise: the display must not give the timing away while they last
+  const BLIND = new Set(['gap', 'randomBeat', 'test']);
+  const isBlind = (ev) => !ev.played && BLIND.has(ev.reason);
+
+  RT.events = { isBlind, SUBDIVS, SWING_PRESETS, defaults, defaultLevels, subCount, effBpm, barInfo, subPos, beatEvents, build };
 })();

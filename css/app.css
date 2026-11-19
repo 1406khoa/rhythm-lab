@@ -402,3 +402,30 @@ select.sel.sm { padding-right: 28px; }
 .stage .pads.compact .beat .n { left: 8px; bottom: 4px; font-size: 13px; }
 .stage .pads.compact .beat.l0 .n { bottom: 8px; }
 @media (prefers-reduced-motion: reduce) { .stage .pads .beat .fill { transition: none; } }
+
+/* blind: during a gap / random silence the display is hidden so the player keeps counting on their own */
+.blind-note { position: absolute; inset: 0; z-index: 3; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  border-radius: inherit; background: color-mix(in srgb, var(--face) 82%, transparent); color: var(--quiet); font: 600 18px var(--sans); letter-spacing: .02em; }
+.stage.blind .blind-note { display: flex; }
+.stage.blind canvas.viz, .stage.blind .pads, .stage.blind .dots { opacity: .35; transition: opacity .15s; }
+.stage.blind .mode-btn { z-index: 4; }
+
+/* tap challenge */
+.challenge { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.ch-line { min-height: 24px; font: 600 16px var(--sans); letter-spacing: .02em; color: var(--quiet); display: flex; gap: 12px; align-items: center; }
+.ch-line.perfect { color: var(--ok); } .ch-line.near { color: var(--warn); } .ch-line.off, .ch-line.miss, .ch-line.rushing, .ch-line.dragging { color: var(--led); }
+.ch-streak { color: var(--warn); }
+.ch-row { display: flex; align-items: center; gap: 14px; width: 100%; justify-content: center; position: relative; }
+.ch-best { font-size: 13px; font-weight: 500; color: var(--quiet); }
+.ch-pad { width: min(420px, 100%); min-height: 64px; border-radius: 999px; border: 2px solid var(--ink); background: var(--face); color: var(--ink); font-size: 15px; touch-action: manipulation; user-select: none; }
+.ch-pad b { font-size: 20px; letter-spacing: .06em; } .ch-pad span { color: var(--quiet); }
+.ch-pad.hit { animation: chhit .12s ease-out; } @keyframes chhit { from { transform: scale(.96); background: var(--hair); } }
+.ch-glow { position: fixed; inset: 0; pointer-events: none; z-index: 25; opacity: 0; }
+.ch-glow.r { background: radial-gradient(ellipse at 50% 70%, rgba(226, 55, 44, .38), rgba(226, 55, 44, .12) 55%, transparent 80%); }
+.ch-glow.y { background: radial-gradient(ellipse at 50% 70%, rgba(232, 163, 58, .32), rgba(232, 163, 58, .08) 55%, transparent 80%); }
+.ch-glow.g { background: radial-gradient(ellipse at 50% 70%, rgba(47, 191, 134, .32), rgba(47, 191, 134, .08) 55%, transparent 80%); }
+.ch-glow.on { animation: chglow .7s ease-out forwards; } @keyframes chglow { 0% { opacity: 1; } 100% { opacity: 0; } }
+.ch-confetti { position: fixed; inset: 0; pointer-events: none; z-index: 26; }
+.wrap.shake { animation: shake .32s cubic-bezier(.36, .07, .19, .97); }
+@keyframes shake { 10%, 90% { transform: translateX(-2px); } 20%, 80% { transform: translateX(4px); } 30%, 50%, 70% { transform: translateX(-7px); } 40%, 60% { transform: translateX(7px); } }
+@media (prefers-reduced-motion: reduce) { .wrap.shake { animation: none; } }

@@ -97,7 +97,8 @@
 
   function onDraw(ev) {
     if (RT.engine.cfg !== cfg || RT.state.tab !== 'test' || ev.kind !== 'beat') return;
-    [...$.lights.children].forEach((l, i) => { l.className = i === ev.beat ? (ev.gIdx < T.countIn ? 'amber' : 'cyan') : ''; });
+    const blind = RT.events.isBlind(ev); // silent test: lights and the bar/beat counter would give the timing away
+    [...$.lights.children].forEach((l, i) => { l.className = !blind && i === ev.beat ? (ev.gIdx < T.countIn ? 'amber' : 'cyan') : ''; });
     if (ev.gIdx < T.countIn) {
       const n = ev.gIdx + 1;
       $.beatctr.textContent = 'Đếm vào ' + n + '/' + T.countIn;
@@ -106,7 +107,7 @@
       $.sub.textContent = 'Chuẩn bị, sau phách 8 là phách 1 của bài kiểm tra.';
     } else {
       const tb = ev.gIdx - T.countIn + 1;
-      $.beatctr.textContent = 'Ô nhịp ' + (Math.floor((tb - 1) / 4) + 1) + ', phách ' + (((tb - 1) % 4) + 1);
+      $.beatctr.textContent = blind ? 'Tự giữ nhịp…' : 'Ô nhịp ' + (Math.floor((tb - 1) / 4) + 1) + ', phách ' + (((tb - 1) % 4) + 1);
       if (state === 'recording' && taps.length < T.hits) {
         $.big.textContent = taps.length + ' / ' + T.hits; $.big.className = 'big';
         $.instr.textContent = cfg.test.silent ? 'Click đã tắt, hãy tự giữ nhịp' : 'Gõ theo click';

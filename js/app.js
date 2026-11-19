@@ -23,7 +23,9 @@
     if (e.code === 'Space') {
       e.preventDefault(); if (e.repeat) return;
       if (document.activeElement && document.activeElement.tagName === 'BUTTON') document.activeElement.blur(); // else keyup re-clicks it
-      if (RT.state.tab === 'test') RT.tabs.test.hit(); else RT.ui.toggleRun();
+      if (RT.state.tab === 'test') RT.tabs.test.hit();
+      else if (RT.challenge.active() && RT.engine.running && RT.engine.cfg === RT.state.cfg) RT.challenge.tap(e); // Space = tap while the challenge runs
+      else RT.ui.toggleRun();
     } else if (RT.state.tab === 'test' && e.code === 'KeyR') RT.tabs.test.reset();
     else if (RT.state.tab === 'test' && e.code === 'KeyM') RT.tabs.test.toggleMute();
   });

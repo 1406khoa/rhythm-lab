@@ -41,7 +41,9 @@
     els.polyPads = h('div', { class: 'pads poly-pads', hidden: true });
     els.dots = h('div', { class: 'dots' });
     els.formNote = h('p', { class: 'banner', hidden: true }, 'Đang chơi theo cấu trúc ở tab Cấu trúc.');
-    const stage = h('div', { class: 'stage' }, els.modeBtn, els.canvas, els.beats, els.polyPads, els.dots, els.formNote);
+    els.blindNote = h('div', { class: 'blind-note', 'aria-live': 'polite' }, h('span', { class: 'eye', 'aria-hidden': 'true' }), 'Tự đếm tiếp…');
+    els.blindNote.firstChild.innerHTML = '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6 0 10 7 10 7a17 17 0 0 1-3.2 3.9M6.6 6.6C3.9 8.4 2 12 2 12s4 7 10 7a9.8 9.8 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+    const stage = els.stage = h('div', { class: 'stage' }, els.blindNote, els.modeBtn, els.canvas, els.beats, els.polyPads, els.dots, els.formNote);
 
     // ---- transport: tempo + start
     els.bpm = h('input', { class: 'bpm-num', type: 'number', min: 1, max: 500, inputmode: 'numeric', 'aria-label': 'Nhịp độ (BPM)' });
@@ -113,12 +115,14 @@
         h('button', { class: 'btn ghost', onclick: () => copy(RT.state.pulseLink(), 'Đã sao chép liên kết') }, 'Sao chép liên kết'),
         h('button', { class: 'btn ghost', onclick: () => { RT.state.resetPulse(); ui.toast('Đã đặt lại'); } }, 'Đặt lại')));
 
-    root.append(h('div', { class: 'metro' }, stage, transport, els.countStrip, settings));
+    const chHolder = h('div', { class: 'ch-holder' });
+    root.append(h('div', { class: 'metro' }, stage, transport, els.countStrip, chHolder, settings));
+    RT.challenge.mount(chHolder);
     RT.viz.attach(els.canvas);
     refresh();
     RT.bus.on('cfg', refresh);
     RT.engine.on('draw', onDraw);
-    RT.engine.on('state', (r) => { if (!r) clearCur(); });
+    RT.engine.on('state', (r) => { if (!r) { clearCur(); els.stage.classList.remove('blind'); } });
   }
 
   function cycleMode() {
@@ -248,6 +252,12 @@
 
   function onDraw(ev) {
     if (RT.state.tab !== 'pulse' || RT.engine.cfg !== cfg) return;
+    if (ev.kind === 'beat') { // gap / random silence: hide the display so the player has to keep counting
+      const blind = RT.events.isBlind(ev);
+      els.stage.classList.toggle('blind', blind);
+      if (blind) { clearCur(); return; }
+    }
+    if (els.stage.classList.contains('blind')) return; // subs / poly inside a blind beat stay hidden too
     if (ev.kind === 'poly') {
       if (els.curPoly) els.curPoly.classList.remove('cur');
       els.curPoly = els.polyPads.children[ev.pulse] || null;
