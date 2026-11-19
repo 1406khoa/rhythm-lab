@@ -33,5 +33,7 @@
   }
   show(RT.state.tab);
   if (q.get('log') === '1') RT.log.set(true);
+  // offline: cache the app after the first visit (service workers need https or localhost, not file://)
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch((e) => console.warn('offline cache unavailable', e));
   if (q.has('selftest')) document.head.append(Object.assign(document.createElement('script'), { src: 'js/selftest.js' })); // dev only, not deployed
 })();

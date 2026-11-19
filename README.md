@@ -34,3 +34,7 @@ The click always plays; the voice adds `1 2 3 4` on the beats. Subdivisions are 
 `tools/build-samples.py` turns `assets/voice-src/english_audio_pack/{1..12}.mp3` (one speaker) into `js/vocal-samples.js`
 (mono 22 kHz WAV, base64, trimmed, loudness-matched, onset measured).
 - Scheduling commits one event at a time, ~120 ms ahead, and computes the next beat from the tempo at that moment — edits are heard within ~120 ms (regression test in `?selftest=live`).
+
+## Offline
+PWA: `sw.js` caches the whole app on the first online visit (stale-while-revalidate, so a new deploy shows on the next launch);
+fonts are self-hosted (`fonts/`, Barlow, SIL OFL). "Add to Home Screen" installs it like an app. Needs https (Vercel) — `file://` has no service worker.
