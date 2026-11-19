@@ -1,4 +1,5 @@
-/* Metronome tab: a big stage (pads or a visualisation) on top, a tempo bar, then one compact settings grid. */
+/* Metronome tab: a big stage (pads or a visualisation) holding the controls (Gõ · Start · Đếm số) and the setting chips,
+ * then the tempo (steps around an editable number) under it. */
 (function () {
   const RT = (window.RT = window.RT || {});
   const { h, clamp } = Object.assign({}, RT.util);
@@ -14,6 +15,7 @@
 
   const taps = [];
   let els = {};
+  let editing = null; // 'sig' | 'subN' | 'swing': its inline editor shows only while being edited, the chip shows the value otherwise
 
   // second-layer choices follow the meter. Counts that divide (or are multiples of) the beats are plain subdivisions
   // (2 over 4 = half notes), not cross-rhythms, so they are left out. Labels in words, no ratios.
@@ -29,9 +31,9 @@
     lane: '<path d="M7 4v16M11 8h9M11 12h6M11 16h9"/>',
   };
   const icon = (id) => '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[id] + '</svg>';
-  const opt = (value, label) => h('option', { value }, label);
-  const field = (label, ...controls) => h('div', { class: 'field' }, h('span', { class: 'fl' }, label), h('div', { class: 'fc' }, ...controls));
-  const select = (aria, options, onChange) => { const el = h('select', { class: 'sel', 'aria-label': aria }, options.map(([v, l]) => opt(v, l))); el.addEventListener('change', () => onChange(el.value)); return el; };
+  // option: full text (shown in the menu) + optional short label (shown on the closed chip, keeps the row to one line)
+  const opt = (value, text, short) => h('option', { value, label: short }, text);
+  const select = (aria, options, onChange) => { const el = h('select', { class: 'sel', 'aria-label': aria }, options.map(([v, l, sh]) => opt(v, l, sh))); el.addEventListener('change', () => onChange(el.value)); return el; };
 
   function init(root) {
     // ---- stage: the big display (pads or a visualisation), display switch in the corner
@@ -40,83 +42,97 @@
     els.beats = h('div', { class: 'pads' });
     els.polyPads = h('div', { class: 'pads poly-pads', hidden: true });
     els.dots = h('div', { class: 'dots' });
-    els.formNote = h('p', { class: 'banner', hidden: true }, 'Đang chơi theo cấu trúc ở tab Cấu trúc.');
     els.blindNote = h('div', { class: 'blind-note', 'aria-live': 'polite' }, h('span', { class: 'eye', 'aria-hidden': 'true' }), 'Tự đếm tiếp…');
     els.blindNote.firstChild.innerHTML = '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6 0 10 7 10 7a17 17 0 0 1-3.2 3.9M6.6 6.6C3.9 8.4 2 12 2 12s4 7 10 7a9.8 9.8 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
-    const stage = els.stage = h('div', { class: 'stage' }, els.blindNote, els.modeBtn, els.canvas, els.beats, els.polyPads, els.dots, els.formNote);
+    // practice chip, first in the settings row: opens the practice panel and says what is switched on
+    els.practice = h('button', { class: 'practice-chip', 'aria-expanded': 'false', onclick: () => RT.practice.toggle() }, h('span', { class: 'pi', 'aria-hidden': 'true' }), els.practiceText = h('span', {}));
+    els.practice.firstChild.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>';
+    RT.bus.on('sheet', (o) => els.practice.setAttribute('aria-expanded', String(o)));
+    const stage = els.stage = h('div', { class: 'stage' }, els.blindNote, els.modeBtn, els.canvas, els.beats, els.polyPads, els.dots);
 
-    // ---- transport: tempo + start
-    els.bpm = h('input', { class: 'bpm-num', type: 'number', min: 1, max: 500, inputmode: 'numeric', 'aria-label': 'Nhịp độ (BPM)' });
+    // ---- transport: tempo steps around an editable number, then start
+    els.bpm = h('input', { class: 'bpm-num', type: 'number', min: 1, max: 500, inputmode: 'numeric', 'aria-label': 'Nhịp độ (BPM), chạm để nhập', 'data-tip': 'Chạm để nhập BPM' });
     els.bpm.addEventListener('change', () => RT.state.setBpm(Number(els.bpm.value) || 60));
+    els.bpm.addEventListener('focus', () => els.bpm.select());
+    els.bpm.addEventListener('keydown', (e) => { if (e.key === 'Enter') els.bpm.blur(); });
     els.name = h('span', {});
-    els.meter = h('span', {});
-    els.slider = ui.range(1, 500, cfg.bpm, (v) => RT.state.setBpm(v));
-    els.slider.setAttribute('aria-label', 'Nhịp độ');
-    const step = (d) => h('button', { class: 'step', 'aria-label': (d > 0 ? 'Tăng ' : 'Giảm ') + Math.abs(d) + ' BPM', onclick: () => RT.state.setBpm(cfg.bpm + d) }, (d > 0 ? '+' : '−') + (Math.abs(d) === 1 ? '' : Math.abs(d)));
-    const tempo = h('div', { class: 'tempo' }, step(-5), step(-1), h('div', { class: 'bpm-c' }, els.bpm, h('div', { class: 'tempo-meta' }, els.name, els.meter)), step(1), step(5));
-    const run = h('div', { class: 'run-row' }, h('button', { class: 'btn tap', onclick: tapTempo, 'aria-label': 'Gõ để lấy nhịp độ' }, 'Gõ'), ui.runButton(), h('kbd', {}, 'Space'));
+    const step = (d) => h('button', { class: 'step', 'aria-label': (d > 0 ? 'Tăng ' : 'Giảm ') + Math.abs(d) + ' BPM', onclick: () => RT.state.setBpm(cfg.bpm + d) }, (d > 0 ? '+' : '−') + Math.abs(d));
+    const tempo = h('div', { class: 'tempo' }, step(-5), step(-2), step(-1),
+      h('label', { class: 'bpm-c' }, els.bpm, h('span', { class: 'tempo-meta' }, h('b', {}, 'BPM'), els.name)), step(1), step(2), step(5));
+    // round controls: tap tempo · start (largest) · count out loud
+    const tap = h('button', { class: 'btn tap', onclick: tapTempo, 'aria-label': 'Gõ để lấy nhịp độ', 'data-tip': 'Gõ vài lần theo nhịp để lấy BPM' });
+    tap.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 9.5V4a2 2 0 0 0-4 0v10"/><path d="M14 10V9a2 2 0 0 0-4 0v1"/><path d="M18 11v-1a2 2 0 0 0-4 0"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-6-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>';
+    const run = h('div', { class: 'run-row' }, tap, ui.runButton('', 'Space'));
     els.run = run;
-    const transport = h('div', { class: 'transport' }, tempo, h('div', { class: 'slider-c' }, els.slider), run);
+    const transport = h('div', { class: 'transport' }, tempo);
 
-    // ---- settings: one compact grid of dropdowns and switches
+    // ---- settings: value chips on the stage's bottom edge; each shows what is set, tap to change (native menus)
     els.sig = select('Số chỉ nhịp', SIGS.map((x) => [x, x]).concat([['other', 'Khác…']]), (v) => {
-      if (v === 'other') { els.custom.hidden = false; return; }
+      if (v === 'other') { edit('sig'); return; }
       const [n, d] = v.split('/').map(Number); RT.state.setSignature(n, d);
     });
     els.cNum = h('input', { class: 'num', type: 'number', min: 1, max: 32, 'aria-label': 'Số phách mỗi ô nhịp' });
     els.cNum.addEventListener('change', () => RT.state.setSignature(Number(els.cNum.value) || 4, cfg.den));
     els.cDen = h('select', { class: 'sel sm', 'aria-label': 'Giá trị nốt' }, [2, 4, 8, 16].map((d) => opt(d, d)));
     els.cDen.addEventListener('change', () => RT.state.setSignature(cfg.num, Number(els.cDen.value)));
-    els.custom = h('span', { class: 'custom-sig' }, els.cNum, h('span', { class: 'slash' }, '/'), els.cDen);
+    els.custom = h('span', { class: 'custom-sig' }, els.cNum, h('span', { class: 'slash' }, '/'), ui.dropdown(els.cDen));
 
-    els.sub = select('Chia phách', SUBS.map(([id, ic, label]) => [id, ic + '  ' + label]), setSub);
+    els.sub = select('Chia phách', SUBS.map(([id, ic, label]) => [id, ic + ' ' + label, id === 'custom' ? 'Chia n' : ic]), setSub);
     els.customN = h('input', { class: 'num', type: 'number', min: 2, max: 16, 'aria-label': 'Số nốt mỗi phách' });
     els.customN.addEventListener('change', () => { cfg.subdiv.n = clamp(Number(els.customN.value) || 5, 2, 16); RT.state.changed('subdiv'); });
 
-    els.swingSel = select('Kiểu swing', SWINGS.concat([['custom', 'Tùy chỉnh']]), (v) => { if (v !== 'custom') { cfg.swing.amount = RT.events.SWING_PRESETS[v]; RT.state.changed('swing'); } });
+    els.swingSel = select('Kiểu swing', SWINGS.concat([['custom', 'Tùy chỉnh']]).map(([v, l]) => [v, l, v === 'straight' ? 'Swing đều' : v === 'custom' ? 'Swing' : 'Swing ' + Math.round(RT.events.SWING_PRESETS[v]) + '%']), (v) => { if (v !== 'custom') { cfg.swing.amount = RT.events.SWING_PRESETS[v]; RT.state.changed('swing'); } else edit('swing'); });
     els.swing = ui.range(50, 75, cfg.swing.amount, (v) => { cfg.swing.amount = v; RT.state.changed('swing'); }, 0.1);
     els.swing.setAttribute('aria-label', 'Mức swing');
     els.swingVal = h('b', { class: 'sw-val' });
 
-    els.follow = ui.toggle(cfg.followBeatMute, (v) => { cfg.followBeatMute = v; RT.state.changed('follow'); }, 'Câm theo phách');
-    // count-out-loud lives on the transport bar, next to Start, as a big labelled toggle
-    els.voice = h('button', { class: 'btn voice-btn', 'aria-pressed': String(!!cfg.voice), title: 'Giọng đọc 1 2 3 4 trên mỗi phách, chồng lên tiếng click',
-      onclick: () => { cfg.voice = !cfg.voice; RT.state.changed('voice'); } },
-      h('span', { class: 'vi', 'aria-hidden': 'true' }), 'Đếm số');
-    els.voice.querySelector('.vi').innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9Z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
+    els.swingBox = h('span', { class: 'chip-extra' }, els.swing, els.swingVal);
+    els.follow = h('button', { class: 'chip-tg', 'aria-pressed': 'false', 'data-tip': 'Phách bị tắt thì các nốt chia của nó cũng tắt',
+      onclick: () => { cfg.followBeatMute = !cfg.followBeatMute; RT.state.changed('follow'); } }, 'Câm theo phách');
+    // count-out-loud: a round toggle right of Start
+    els.voice = h('button', { class: 'btn voice-btn', 'aria-pressed': String(!!cfg.voice), 'aria-label': 'Đếm số', 'data-tip': 'Đếm số: giọng đọc 1 2 3 4 trên mỗi phách',
+      onclick: () => { cfg.voice = !cfg.voice; RT.state.changed('voice'); ui.toast(cfg.voice ? 'Đã bật đếm số' : 'Đã tắt đếm số'); } },
+      h('span', { class: 'vi', 'aria-hidden': 'true' }));
+    els.voice.querySelector('.vi').innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9Z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
     els.voice.set = (v) => els.voice.setAttribute('aria-pressed', String(!!v));
     // everything about counting out loud sits in one strip under the tempo bar, shown while "Đếm số" is on
     els.countOpts = h('div', { class: 'count-opts', role: 'radiogroup', 'aria-label': 'Cách đếm' });
     els.countAccent = ui.toggle(cfg.vocal.accent, (v) => { cfg.vocal.accent = v; applyGroupAccents(); RT.state.changed('grouping'); }, 'Nhấn phách đầu nhóm');
     els.accentRow = h('label', { class: 'count-accent' }, els.countAccent, h('span', {}, 'Nhấn phách đầu nhóm'));
-    els.countHint = h('small', { class: 'count-hint' });
-    els.countStrip = h('div', { class: 'count-strip', hidden: true }, h('span', { class: 'count-title' }, 'Cách đếm'), els.countOpts, els.countHint, els.accentRow);
-    els.run.insertBefore(els.voice, els.run.children[1]);
+    els.countStrip = h('div', { class: 'count-strip', hidden: true }, h('span', { class: 'count-title' }, 'Cách đếm'), els.countOpts, els.accentRow);
+    els.run.append(els.voice);
 
-    els.polyOn = ui.toggle(cfg.poly.on, (v) => {
-      cfg.poly.on = v;
-      if (v && !polyValid(cfg.poly.m, cfg.num)) cfg.poly.m = defaultPoly(cfg.num);
+    els.polySel = h('select', { class: 'sel', 'aria-label': 'Đa nhịp (độc lập chi)' });
+    els.polySel.addEventListener('change', () => {
+      const v = els.polySel.value;
+      cfg.poly.on = v !== 'off';
+      if (cfg.poly.on) cfg.poly.m = Number(v);
       RT.state.changed('poly');
-    }, 'Đa nhịp');
-    els.polySel = h('select', { class: 'sel', 'aria-label': 'Tỉ lệ đa nhịp' });
-    els.polySel.addEventListener('change', () => { cfg.poly.m = Number(els.polySel.value); RT.state.changed('poly'); });
-    els.listen = select('Nghe lớp nào', [['both', 'Cả hai lớp'], ['main', 'Lớp chính'], ['poly', 'Lớp phụ']], (v) => { cfg.poly.listen = v; RT.state.changed('poly'); });
-    els.polySub = select('Chia lớp phụ', [[1, '♩ Không chia'], [2, '♪♪ Chia 2'], [3, '♪♪♪ Chia 3'], [4, '♬♬ Chia 4'], [6, '♬♬♬ Chia 6']], (v) => { cfg.poly.n = Number(v); RT.state.changed('poly'); });
-    els.polyBox = h('span', { class: 'fc-sub poly-box' }, els.polySel, els.polySub, els.listen);
-
-    els.swingField = field('Swing', els.swingSel, els.swing, els.swingVal);
-    const settings = h('div', { class: 'settings' },
-      field('Số chỉ nhịp', els.sig, els.custom),
-      field('Chia phách', els.sub, els.customN),
-      els.swingField,
-      field('Câm theo phách', els.follow),
-      Object.assign(field('Đa nhịp (độc lập chi)', els.polyOn, els.polyBox), { className: 'field poly-field' }),
-      h('div', { class: 'field links' },
-        h('button', { class: 'btn ghost', onclick: () => copy(RT.state.pulseLink(), 'Đã sao chép liên kết') }, 'Sao chép liên kết'),
-        h('button', { class: 'btn ghost', onclick: () => { RT.state.resetPulse(); ui.toast('Đã đặt lại'); } }, 'Đặt lại')));
+    });
+    els.listen = select('Nghe lớp nào', [['both', 'Nghe cả hai lớp', 'Nghe 2 lớp'], ['main', 'Chỉ nghe lớp chính', 'Nghe chính'], ['poly', 'Chỉ nghe lớp phụ', 'Nghe phụ']], (v) => { cfg.poly.listen = v; RT.state.changed('poly'); });
+    els.polySub = select('Chia lớp phụ', [[1, '♩ Lớp phụ không chia', '♩'], [2, '♪♪ Lớp phụ chia 2', '♪♪'], [3, '♪♪♪ Lớp phụ chia 3', '♪♪♪'], [4, '♬♬ Lớp phụ chia 4', '♬♬'], [6, '♬♬♬ Lớp phụ chia 6', '♬♬♬']], (v) => { cfg.poly.n = Number(v); RT.state.changed('poly'); });
+    // one control row in the stage: setting chips left · Gõ ▶ Đếm số in the middle · setting chips right
+    const chips = (cls, list) => h('div', { class: 'chips ' + cls }, ...list.map((el) => (el.tagName === 'SELECT' ? ui.dropdown(el) : el)));
+    els.bar = h('div', { class: 'ctl-bar' },
+      chips('left', [els.practice, els.sig, els.custom, els.sub, els.customN, els.swingSel, els.swingBox]),
+      els.run,
+      chips('right', [els.follow, els.polySel, els.polySub, els.listen]));
+    stage.append(els.bar);
+    document.addEventListener('pointerdown', (e) => {
+      if (!editing || e.target.closest('.custom-sig, .chips .num, .chip-extra, .dd, .menu')) return;
+      editing = null; refresh();
+    }, true);
+    // fade the edge(s) of a chip group only where it actually has more to scroll to
+    const fades = () => els.bar.querySelectorAll('.chips').forEach((c) => {
+      const max = c.scrollWidth - c.clientWidth;
+      c.classList.toggle('fade-l', max > 1 && c.scrollLeft > 1); c.classList.toggle('fade-r', max > 1 && c.scrollLeft < max - 1);
+    });
+    els.bar.querySelectorAll('.chips').forEach((c) => c.addEventListener('scroll', fades, { passive: true }));
+    if (window.ResizeObserver) new ResizeObserver(fades).observe(els.bar);
+    els.fades = fades;
 
     const chHolder = h('div', { class: 'ch-holder' });
-    root.append(h('div', { class: 'metro' }, stage, transport, els.countStrip, chHolder, settings));
+    root.append(h('div', { class: 'metro' }, stage, transport, els.countStrip, chHolder));
     RT.challenge.mount(chHolder);
     RT.viz.attach(els.canvas);
     refresh();
@@ -136,8 +152,10 @@
     if (id !== 'custom') cfg.subdiv.n = RT.events.SUBDIVS[id];
     else if (!(cfg.subdiv.n >= 2)) cfg.subdiv.n = 5;
     cfg.subMask = [];
+    if (id === 'custom') editing = 'subN';
     RT.state.changed('subdiv');
   }
+  function edit(what) { editing = what; refresh(); const f = { sig: els.cNum, subN: els.customN, swing: els.swing }[what]; if (f) f.focus(); }
 
   // what the voice will say for a grouping, e.g. '2+2+3' -> '1 2 · 1 2 · 1 2 3'
   function spoken(grouping, num) {
@@ -171,48 +189,51 @@
 
   function refresh() {
     els.bpm.value = cfg.bpm;
-    els.slider.value = cfg.bpm;
     els.name.textContent = RT.util.tempoName(cfg.bpm);
-    els.meter.textContent = cfg.form.on ? 'Cấu trúc' : cfg.num + '/' + cfg.den;
+    const sum = RT.practice.summary();
+    const nOn = sum ? sum.split(' · ').length : 0;
+    els.practiceText.textContent = nOn ? 'Luyện tập · ' + nOn : 'Luyện tập'; // details in the tooltip, keeps the row short
+    els.practice.classList.toggle('active', !!sum);
+    els.practice.dataset.tip = sum ? 'Luyện tập: ' + sum : 'Mở cài đặt luyện tập';
     const sig = cfg.num + '/' + cfg.den, preset = SIGS.includes(sig);
     els.sig.value = preset ? sig : 'other';
-    els.custom.hidden = preset; els.cNum.value = cfg.num; els.cDen.value = cfg.den;
+    els.custom.hidden = editing !== 'sig'; els.cNum.value = cfg.num; els.cDen.value = cfg.den;
+    els.sig.querySelector('[value=other]').label = preset ? 'Khác…' : sig;
     els.sub.value = cfg.subdiv.id;
-    els.customN.value = cfg.subdiv.n; els.customN.hidden = cfg.subdiv.id !== 'custom';
+    els.customN.value = cfg.subdiv.n; els.customN.hidden = cfg.subdiv.id !== 'custom' || editing !== 'subN';
+    els.sub.querySelector('[value=custom]').label = cfg.subdiv.id === 'custom' ? 'Chia ' + cfg.subdiv.n : 'Chia n';
     const swingId = Object.keys(RT.events.SWING_PRESETS).find((k) => Math.abs(RT.events.SWING_PRESETS[k] - cfg.swing.amount) < 0.05);
-    els.swingSel.value = swingId || 'custom';
+    els.swingSel.value = editing === 'swing' || !swingId ? 'custom' : swingId;
+    els.swingSel.querySelector('[value=custom]').label = 'Swing ' + Math.round(cfg.swing.amount) + '%';
     els.swing.value = cfg.swing.amount;
     els.swingVal.textContent = (+cfg.swing.amount.toFixed(1)) + '%';
     const canSwing = RT.events.subCount(cfg) >= 2;
-    els.swingSel.disabled = els.swing.disabled = !canSwing;
-    els.swingField.classList.toggle('off', !canSwing);
-    els.swingField.title = canSwing ? '' : 'Chọn chia phách (ví dụ Móc đơn) để dùng swing';
-    els.follow.set(cfg.followBeatMute);
+    // swing and follow-mute only mean something with a subdivision: hidden until then
+    els.swingSel.hidden = els.follow.hidden = !canSwing;
+    els.swingBox.hidden = !canSwing || editing !== 'swing';
+    els.follow.setAttribute('aria-pressed', String(!!cfg.followBeatMute));
     els.voice.set(cfg.voice);
     const groups = RT.syllables.GROUPINGS[cfg.num] || [];
     const current = groups.includes(cfg.vocal.grouping) ? cfg.vocal.grouping : '';
-    els.countStrip.hidden = !cfg.voice;
+    els.countStrip.hidden = !cfg.voice || groups.length === 0; // only when there is a grouping to choose (5+ beats)
     els.countOpts.replaceChildren(...[''].concat(groups).map((g) => h('button', { class: 'count-opt', role: 'radio', 'aria-checked': String(g === current), 'data-g': g,
       onclick: () => pickCount(g) }, spoken(g, Math.min(cfg.num, 12)))));
-    els.countOpts.hidden = groups.length === 0;
-    els.accentRow.hidden = groups.length === 0;
-    els.countHint.textContent = groups.length ? '' : 'Giọng đọc ' + spoken('', Math.min(cfg.num, 12)) + ' trên mỗi ô nhịp. Nhịp từ 5 phách trở lên có thêm cách đếm theo nhóm.';
     els.countAccent.set(cfg.vocal.accent);
-    els.polyOn.set(cfg.poly.on); els.polyBox.hidden = !cfg.poly.on;
+    els.polySub.hidden = els.listen.hidden = !cfg.poly.on;
     if (cfg.poly.on && !polyValid(cfg.poly.m, cfg.num)) { cfg.poly.m = defaultPoly(cfg.num); RT.state.save(); } // meter changed: pick a real cross-rhythm
     const choices = polyChoices(cfg.num);
     if (!choices.some(([m]) => m === cfg.poly.m)) choices.push([cfg.poly.m, cfg.poly.m + ' nốt trên ' + cfg.num + ' phách']); // e.g. from a shared link
-    els.polySel.replaceChildren(...choices.map(([v, l]) => opt(v, l)));
-    els.polySel.value = String(cfg.poly.m); els.polySub.value = String(cfg.poly.n || 1); els.listen.value = cfg.poly.listen;
-    els.formNote.hidden = !cfg.form.on;
+    els.polySel.replaceChildren(opt('off', 'Tắt', 'Đa nhịp: tắt'), ...choices.map(([v, l]) => opt(v, l, 'Đa nhịp ' + v + ':' + cfg.num)));
+    els.polySel.value = cfg.poly.on ? String(cfg.poly.m) : 'off'; els.polySub.value = String(cfg.poly.n || 1); els.listen.value = cfg.poly.listen;
     const mode = RT.viz.MODES.find(([id]) => id === cfg.viz) || RT.viz.MODES[0];
     els.modeBtn.innerHTML = icon(mode[0]);
     els.modeBtn.setAttribute('aria-label', 'Kiểu hiển thị: ' + mode[1] + '. Chạm để đổi');
-    els.modeBtn.title = 'Kiểu hiển thị: ' + mode[1];
+    els.modeBtn.dataset.tip = 'Kiểu hiển thị: ' + mode[1];
     els.canvas.hidden = cfg.viz === 'pads';
     els.beats.classList.toggle('compact', cfg.viz !== 'pads');
     drawBeats();
     RT.viz.redraw();
+    requestAnimationFrame(els.fades);
   }
 
   function drawBeats() {
@@ -264,7 +285,7 @@
       if (els.curPoly && ev.played) els.curPoly.classList.add('cur');
       return;
     }
-    if (ev.kind === 'beat' && !cfg.form.on) {
+    if (ev.kind === 'beat') {
       if (els.cur) els.cur.classList.remove('cur', 'quiet');
       els.cur = els.beats.children[ev.beat] || null;
       if (els.cur) { els.cur.classList.add('cur'); els.cur.classList.toggle('quiet', !ev.played); }

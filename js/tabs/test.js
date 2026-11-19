@@ -202,15 +202,20 @@
     if (typeof Chart === 'undefined') return;
     Object.values(charts).forEach((c) => c.destroy());
     const labels = a.offsets.map((_, i) => i + 1);
-    const axis = (title, x) => ({ title: { display: true, text: title, color: '#7f8db0' }, ticks: { color: '#7f8db0', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.05)' }, ...x });
+    // colours come from the theme tokens (light/dark), '66' = 40% alpha on the 6-digit hex
+    const css = getComputedStyle(document.documentElement), col = (n) => css.getPropertyValue(n).trim(), a40 = (n) => col(n) + '66';
+    const OK = col('--ok'), WARN = col('--warn'), BAD = col('--led'), INK = col('--ink');
+    Chart.defaults.font.family = 'Barlow, sans-serif';
+    Object.assign(Chart.defaults.plugins.tooltip, { backgroundColor: INK, titleColor: col('--bg'), bodyColor: col('--bg'), cornerRadius: parseInt(col('--r'), 10) || 12, padding: 10, displayColors: false });
+    const axis = (title, x) => ({ title: { display: true, text: title, color: col('--quiet') }, ticks: { color: col('--quiet'), font: { size: 11 } }, grid: { color: col('--hair') }, border: { color: col('--hair') }, ...x });
     const line = (v, c) => ({ data: Array(labels.length).fill(v), borderColor: c, borderDash: [3, 3], borderWidth: 1, pointRadius: 0 });
     charts.c1 = new Chart($.c1.getContext('2d'), { type: 'line', data: { labels, datasets: [{
-      data: a.offsets.map((v) => +v.toFixed(1)), borderColor: '#4f8cff', borderWidth: 2, tension: 0.15, pointRadius: 4,
-      pointBackgroundColor: a.offsets.map((o) => (Math.abs(o) <= 15 ? '#2fbf86' : Math.abs(o) <= 35 ? '#e8a33a' : '#e5566d')) },
-      line(0, '#2fbf86'), line(15, 'rgba(47,191,134,.4)'), line(-15, 'rgba(47,191,134,.4)'), line(35, 'rgba(232,163,58,.4)'), line(-35, 'rgba(232,163,58,.4)')] },
+      data: a.offsets.map((v) => +v.toFixed(1)), borderColor: INK, borderWidth: 2, tension: 0.15, pointRadius: 4, pointBorderWidth: 0,
+      pointBackgroundColor: a.offsets.map((o) => (Math.abs(o) <= 15 ? OK : Math.abs(o) <= 35 ? WARN : BAD)) },
+      line(0, OK), line(15, a40('--ok')), line(-15, a40('--ok')), line(35, a40('--warn')), line(-35, a40('--warn'))] },
       options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false } }, scales: { x: axis('Phách'), y: axis('Độ lệch (ms)', { suggestedMin: -60, suggestedMax: 60 }) } } });
-    charts.c2 = new Chart($.c2.getContext('2d'), { type: 'bar', data: { labels: a.itis.map((_, i) => i + 1 + '→' + (i + 2)), datasets: [{ data: a.itis.map((v) => +v.toFixed(1)), backgroundColor: 'rgba(47,191,134,.4)', borderColor: '#2fbf86', borderWidth: 1 },
-      { type: 'line', data: Array(a.itis.length).fill(a.target), borderColor: '#4f8cff', borderDash: [4, 4], borderWidth: 1.5, pointRadius: 0 }] },
+    charts.c2 = new Chart($.c2.getContext('2d'), { type: 'bar', data: { labels: a.itis.map((_, i) => i + 1 + '→' + (i + 2)), datasets: [{ data: a.itis.map((v) => +v.toFixed(1)), backgroundColor: a40('--ok'), borderColor: OK, borderWidth: 1, borderRadius: 4 },
+      { type: 'line', data: Array(a.itis.length).fill(a.target), borderColor: INK, borderDash: [4, 4], borderWidth: 1.5, pointRadius: 0 }] },
       options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false } }, scales: { x: axis('Cặp phách'), y: axis('Khoảng cách (ms)', { suggestedMin: a.target - 100, suggestedMax: a.target + 100 }) } } });
   }
 

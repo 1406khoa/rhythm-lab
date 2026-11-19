@@ -26,24 +26,18 @@
       vocal: { grouping: '', accent: true }, // grouping for odd meters (see js/core/syllables.js); accent = stress each group's first beat
       gap: { on: false, unit: 'measures', play: 2, silence: 2 },
       random: { on: false, beatPct: 30, subPct: 0 },
-      form: { on: false, bpm: 60, bars: [{ num: 4, den: 4, levels: defaultLevels(4) }] },
       poly: { on: false, m: 3, n: 1, listen: 'both' }, // polyrhythm: m even pulses per bar against the beats, each split in n; listen both | main | poly
       viz: 'pads',               // face display: pads | polygon | clock | ball | pendulum | lane
       seed: 1,
-      keepAwake: true,           // device preference, not used by buildEvents
       challenge: { on: false },  // tap challenge (js/challenge.js), not used by buildEvents
       test: null,                // { countIn: 8, silent: true } -> Test tab profile
     };
   }
 
   const subCount = (cfg) => (cfg.subdiv.id === 'custom' ? RT.util.clamp(cfg.subdiv.n | 0, 2, 16) : SUBDIVS[cfg.subdiv.id] || 1);
-  const effBpm = (cfg) => (cfg.form.on && !cfg.test ? cfg.form.bpm : cfg.bpm);
+  const effBpm = (cfg) => cfg.bpm;
 
   function barInfo(cfg, barIdx) {
-    if (cfg.form.on && !cfg.test) {
-      const b = cfg.form.bars[barIdx % cfg.form.bars.length];
-      return { num: b.num, den: b.den, levels: b.levels };
-    }
     return { num: cfg.num, den: cfg.den, levels: cfg.levels };
   }
 

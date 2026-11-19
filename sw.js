@@ -1,7 +1,7 @@
 /* Offline support: the first online visit stores the whole app; after that it opens without a network.
  * Strategy: serve from cache at once, refresh the cached copy in the background (stale-while-revalidate),
  * so a new deploy shows up on the next launch. Bump VERSION only to force-drop old caches. */
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = 'rhythm-lab-' + VERSION;
 const SHELL = [
   "./",
@@ -14,7 +14,6 @@ const SHELL = [
   "js/logpanel.js",
   "js/ui.js",
   "js/vocal-samples.js",
-  "js/tabs/forms.js",
   "js/tabs/practice.js",
   "js/tabs/pulse.js",
   "js/tabs/test.js",

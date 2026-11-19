@@ -231,7 +231,7 @@
   // snapshot of what to draw
   function stateFor(cfg, T) {
     const cur = T && T.cur, num = cur ? cur.num : RT.events.barInfo(cfg, 0).num;
-    const levels = cfg.form.on ? RT.events.barInfo(cfg, cur ? cur.bar : 0).levels : cfg.levels;
+    const levels = cfg.levels;
     const S = { cfg, running: !!T, b: cur ? cur.beat : 0, phase: T ? T.phase : 0, played: cur ? cur.played : true, num, levels, n: RT.events.subCount(cfg),
       ratio: cfg.swing.amount / 100, subMask: cfg.subMask, groupStarts: cfg.voice ? RT.syllables.groupStarts(cfg.vocal.grouping, num) : null, poly: null };
     if (cfg.poly && cfg.poly.on) {

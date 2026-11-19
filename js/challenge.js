@@ -103,7 +103,7 @@
     if (reduced()) return;
     const cv = els.confetti, g = cv.getContext('2d'), W = (cv.width = innerWidth), H = (cv.height = innerHeight);
     const r = els.pad.getBoundingClientRect(), ox = r.left + r.width / 2, oy = r.top;
-    const css = getComputedStyle(document.documentElement), colors = ['#2fbf86', '#e8a33a', '#e2372c', css.getPropertyValue('--ink').trim(), '#7c6cf0'];
+    const css = getComputedStyle(document.documentElement), colors = ['--ok', '--warn', '--led', '--ink', '--quiet'].map((n) => css.getPropertyValue(n).trim()); // theme colours
     const parts = Array.from({ length: 70 }, () => ({ x: ox, y: oy, vx: (Math.random() - 0.5) * 9, vy: -Math.random() * 10 - 4, r: Math.random() * TAU, vr: (Math.random() - 0.5) * 0.4,
       w: 5 + Math.random() * 5, h: 3 + Math.random() * 3, c: colors[(Math.random() * colors.length) | 0] }));
     const t0 = performance.now();
