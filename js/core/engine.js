@@ -20,16 +20,24 @@
     now: () => (ctx ? ctx.currentTime : 0),
     masterLevel: () => (master ? master.gain.value : null),
 
+    // Must run synchronously inside the tap/click (before any await), or iOS keeps the context muted.
     ensureCtx() {
-      if (!ctx) { ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' }); master = ctx.createGain(); master.connect(ctx.destination); }
-      return ctx.state === 'suspended' ? ctx.resume() : Promise.resolve();
+      if (!ctx) {
+        // iOS: Web Audio obeys the ring/silent switch unless the session is 'playback' (Safari 16.4+)
+        try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* unsupported */ }
+        ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' }); master = ctx.createGain(); master.connect(ctx.destination);
+      }
+      const p = ctx.state !== 'running' ? ctx.resume() : Promise.resolve();
+      // iOS unlock: a sound must start within the gesture itself
+      const s = ctx.createBufferSource(); s.buffer = ctx.createBuffer(1, 1, ctx.sampleRate); s.connect(ctx.destination); s.start(0);
+      return p;
     },
 
     async start(cfg) {
       E.stop();
       const my = ++startSeq; // a stop() or a newer start() while we await cancels this one
       E.starting = true;
-      await E.ensureCtx();
+      await E.ensureCtx(); // its sync part runs inside the user gesture
       await RT.voices.ready;
       if (my !== startSeq) return;
       E.starting = false;

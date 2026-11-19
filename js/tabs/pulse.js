@@ -224,7 +224,7 @@
     if (els.beats.children.length !== cfg.levels.length) {
       els.beats.replaceChildren(...cfg.levels.map((_, i) => h('button', { class: cls(i), 'aria-label': label(i),
         onclick: () => { cfg.levels[i] = NEXT_LEVEL[cfg.levels[i]] ?? 2; RT.state.changed('levels'); } },
-        h('span', { class: 'fill' }), h('span', { class: 'n' }, i + 1))));
+        h('span', { class: 'fill' }))));
     } else { // same pads: update in place so the height change animates
       [...els.beats.children].forEach((b, i) => {
         const keep = ['cur', 'quiet'].filter((c) => b.classList.contains(c));
@@ -238,7 +238,7 @@
     const showPoly = cfg.poly.on && cfg.viz === 'pads', m = clamp(cfg.poly.m | 0, 2, 16);
     els.polyPads.hidden = !showPoly;
     els.polyPads.style.setProperty('--n', m);
-    els.polyPads.replaceChildren(...(showPoly ? Array.from({ length: m }, (_, j) => h('div', { class: 'beat p' + (j === 0 ? ' l2' : ''), 'aria-hidden': 'true' }, h('span', { class: 'n' }, j + 1))) : []));
+    els.polyPads.replaceChildren(...(showPoly ? Array.from({ length: m }, (_, j) => h('div', { class: 'beat p' + (j === 0 ? ' l2' : ''), 'aria-hidden': 'true' }, h('span', { class: 'fill' }))) : []));
     els.curDot = null; els.curPoly = null;
   }
 

@@ -389,18 +389,14 @@ select.sel.sm { padding-right: 28px; }
 .stage .pads .beat.ls .fill { height: 33%; opacity: .32; }
 .stage .pads .beat.l0 .fill { height: 6px; opacity: .45; border-radius: 3px; left: 4px; right: 4px; bottom: 6px; }
 .stage .pads .beat.l0 { box-shadow: inset 0 0 0 2px var(--hair); border-radius: 14px; }
-.stage .pads .beat .n { position: absolute; left: 12px; bottom: 10px; z-index: 1; color: var(--bg); font: 600 clamp(14px, 2.2vw, 22px) var(--cond); }
-.stage .pads .beat.ls .n, .stage .pads .beat.l0 .n { color: var(--quiet); }
-.stage .pads .beat.l0 .n { bottom: 18px; }
 .stage .pads .beat.cur .fill { background: var(--led); opacity: 1; }
-.stage .pads .beat.cur .n { color: #fff; }
+.stage .poly-pads .beat .fill { background: var(--led); opacity: .35; }
+.stage .poly-pads .beat.cur .fill { opacity: 1; }
 .stage .pads .beat.cur.quiet .fill { background: var(--ink); opacity: .2; }
 .stage .pads .beat:focus-visible { outline-offset: 3px; }
 .stage .pads.compact .beat { height: 44px; }
 .stage .pads.compact .beat .fill { border-radius: 8px; }
 .stage .pads.compact .beat.l0 .fill { height: 3px; bottom: 4px; }
-.stage .pads.compact .beat .n { left: 8px; bottom: 4px; font-size: 13px; }
-.stage .pads.compact .beat.l0 .n { bottom: 8px; }
 @media (prefers-reduced-motion: reduce) { .stage .pads .beat .fill { transition: none; } }
 
 /* blind: during a gap / random silence the display is hidden so the player keeps counting on their own */
