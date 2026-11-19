@@ -13,6 +13,11 @@
     if (saved.sound) { saved.click = saved.sound === 'vocal' ? 'electronic' : saved.sound; saved.voice = saved.sound === 'vocal'; delete saved.sound; }
     Object.assign(cfg, saved);
     cfg.click = 'electronic'; // only click sound left
+    const d = RT.events.defaults(); // fields added later: keep defaults when an older save lacks them
+    if (!cfg.poly || typeof cfg.poly !== 'object') cfg.poly = d.poly;
+    if (!(cfg.poly.n >= 1)) cfg.poly.n = 1;
+    if (typeof cfg.vocal.accent !== 'boolean') cfg.vocal.accent = true;
+    if (!['pads', 'polygon', 'clock', 'ball', 'pendulum', 'lane'].includes(cfg.viz)) cfg.viz = d.viz;
   } // a stale/corrupt blob falls back to defaults instead of crashing init
   cfg.test = null;
   cfg.seed = 1;
@@ -53,7 +58,7 @@
       try {
         const d = b64.dec(m[2]);
         if (m[1] === 'p') {
-          Object.assign(cfg, { bpm: clamp(d.bpm | 0, 1, 500), num: clamp(d.num | 0, 1, 32), den: d.den, levels: d.levels, subdiv: d.subdiv, subMask: d.subMask || [], followBeatMute: !!d.followBeatMute, swing: d.swing, click: RT.voices.CLICKS.some(([id]) => id === d.click) ? d.click : 'electronic', voice: !!d.voice, vocal: { grouping: String((d.vocal && d.vocal.grouping) || '') } });
+          Object.assign(cfg, { bpm: clamp(d.bpm | 0, 1, 500), num: clamp(d.num | 0, 1, 32), den: d.den, levels: d.levels, subdiv: d.subdiv, subMask: d.subMask || [], followBeatMute: !!d.followBeatMute, swing: d.swing, click: RT.voices.CLICKS.some(([id]) => id === d.click) ? d.click : 'electronic', voice: !!d.voice, vocal: { grouping: String((d.vocal && d.vocal.grouping) || ''), accent: !(d.vocal && d.vocal.accent === false) } });
           cfg.levels = S.resizeLevels(cfg.levels, cfg.num);
         } else {
           cfg.form.bpm = clamp(d.b | 0, 1, 500);

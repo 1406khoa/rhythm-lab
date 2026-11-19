@@ -12,6 +12,7 @@
     TABS.forEach((t) => { document.getElementById('tab-' + t).hidden = t !== tab; });
     document.querySelectorAll('.tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
     RT.log.note('tab', { tab });
+    if (RT.viz) RT.viz.redraw();
   }
   document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => show(b.dataset.tab)));
   RT.show = show;

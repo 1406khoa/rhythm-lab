@@ -1,5 +1,5 @@
-/* Rhythm Lab — a practice-stand device: one lit face (tempo + beat pads), quiet controls below.
- * Phone first (tabs at the bottom, Start docked above them); tablet/desktop: face left, settings right. */
+/* Rhythm Lab — a practice-stand device: one big lit stage (pads or a visualisation), a tempo bar, compact settings.
+ * Phone first (tabs at the bottom, Start docked above them); desktop/landscape: the whole Metronome tab fits one screen. */
 :root {
   --bg: #d9dad5;       /* brushed aluminium */
   --face: #ececE8;     /* the display face */
@@ -14,6 +14,7 @@
   --sans: 'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --cond: 'Barlow Condensed', 'Roboto Condensed', 'Arial Narrow', var(--sans);
   --nav-h: 60px;
+  --top-h: 73px; /* header height on tablet/desktop (measured) */
   --safe-b: env(safe-area-inset-bottom, 0px);
 }
 @media (prefers-color-scheme: dark) {
@@ -46,11 +47,11 @@ kbd { font: 500 12px var(--sans); color: var(--quiet); border: 1px solid var(--h
 .tabs button[aria-selected="true"] { color: var(--ink); font-weight: 600; }
 .tabs button[aria-selected="true"]::before { content: ''; position: absolute; top: 0; left: 30%; right: 30%; height: 3px; background: var(--led); border-radius: 0 0 3px 3px; }
 
-.wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px 24px; }
+.wrap { max-width: 1280px; margin: 0 auto; padding: 0 16px 24px; }
 .foot { text-align: center; color: var(--quiet); font-size: 12px; padding: 8px 16px calc(var(--nav-h) + var(--safe-b) + 24px); }
 
 /* ---------- controls ---------- */
-.btn, .pill, .icon, .step { border: 1px solid var(--hair); background: var(--face); color: var(--ink); border-radius: 10px; font-weight: 500; }
+.btn, .pill, .icon, .step, .mode-btn { border: 1px solid var(--hair); background: var(--face); color: var(--ink); border-radius: 10px; font-weight: 500; }
 .btn { min-height: 44px; padding: 0 16px; }
 .btn.sm { min-height: 36px; padding: 0 12px; font-size: 14px; }
 .btn.sq { width: 40px; padding: 0; }
@@ -106,17 +107,6 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 .two-col { display: grid; grid-template-columns: 1fr; }
 .note { color: var(--quiet); font-size: 13px; }
 
-/* ---------- metronome face ---------- */
-.face { container-type: inline-size; margin: 14px 0 4px; background: var(--face); border-radius: 22px; padding: 16px 16px 18px; display: flex; flex-direction: column; gap: 10px; box-shadow: inset 0 0 0 1px var(--hair); }
-.tempo-row { display: flex; align-items: center; gap: 6px; }
-.step { width: 48px; height: 48px; flex: none; font: 500 22px var(--cond); border-radius: 50%; padding: 0; background: var(--bg); }
-.step.big5 { width: 40px; height: 40px; font-size: 14px; border-color: transparent; background: none; color: var(--quiet); }
-.bpm-c { flex: 1; text-align: center; min-width: 0; }
-.bpm-num { width: 100%; border: 0; background: none; text-align: center; padding: 0; font: 600 min(128px, 34cqi)/0.95 var(--cond); letter-spacing: -.03em; -moz-appearance: textfield; color: var(--ink); }
-.bpm-num::-webkit-outer-spin-button, .bpm-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.tempo-meta { display: flex; align-items: center; justify-content: space-between; color: var(--quiet); font-size: 14px; margin-top: -4px; }
-.tempo-meta .meta { display: flex; gap: 12px; }
-.tempo-meta .meta span + span::before { content: ''; display: inline-block; width: 1px; height: 11px; background: var(--hair); margin-right: 12px; }
 
 /* beat pads: LED squares across the face; tap to cycle accent / normal / muted */
 .pads { display: grid; grid-template-columns: repeat(min(var(--n, 4), 8), 1fr); gap: 8px; }
@@ -236,12 +226,6 @@ textarea { width: 100%; background: var(--face); border: 1px solid var(--hair); 
   .sec h3, .cap { font-size: 19px; }
   .line { min-height: 52px; }
 
-  .face { padding: 28px 28px 30px; gap: 16px; border-radius: 28px; }
-  .bpm-num { font-size: min(220px, 34cqi); }
-  .step { width: 72px; height: 72px; font-size: 32px; }
-  .step.big5 { width: 56px; height: 44px; font-size: 17px; }
-  .tempo-meta { font-size: 17px; }
-  .beat { aspect-ratio: auto; height: clamp(96px, 13vw, 150px); max-height: none; border-radius: 16px; font-size: 22px; padding: 12px 14px; }
   .custom-sig { font-size: 16px; }
   .card.narrow { max-width: none; }
   .btn.sm.sq { width: 48px; min-height: 48px; }
@@ -276,10 +260,6 @@ textarea { width: 100%; background: var(--face); border: 1px solid var(--hair); 
 
 /* two columns only where there is width to spare: landscape tablets and desktops */
 @media (min-width: 1100px), (min-width: 900px) and (orientation: landscape) {
-  .split { display: grid; grid-template-columns: minmax(360px, 5fr) 6fr; gap: 0 48px; align-items: start; }
-  .split .left { position: sticky; top: 84px; }
-  .split .left .run-row { position: static; }
-  .split .right > .sec:first-child { border-top: 0; }
   .tiles { grid-template-columns: repeat(3, 1fr); }
   .grid-test { grid-template-columns: minmax(340px, 5fr) 6fr; align-items: start; }
   .grid-test .stack:first-child { order: 0; }
@@ -294,3 +274,131 @@ textarea { width: 100%; background: var(--face); border: 1px solid var(--hair); 
 @media (hover: none) { .keys { display: none; } }
 #tab-forms > .row-gap { margin-top: 4px; }
 #tab-forms > .hint { margin: 10px 0 16px; }
+
+/* beat visualisations */
+canvas.target { display: block; width: 100%; max-width: 420px; aspect-ratio: 1; margin: 0 auto; }
+
+
+/* ---------- metronome tab: stage on top, tempo bar, settings grid ---------- */
+.metro { display: flex; flex-direction: column; gap: 12px; padding-top: 12px; }
+.stage { position: relative; background: var(--face); border-radius: 22px; box-shadow: inset 0 0 0 1px var(--hair); padding: 14px; display: flex; flex-direction: column; gap: 10px; height: max(300px, 52svh); }
+.mode-btn { position: absolute; top: 10px; right: 10px; z-index: 2; width: 44px; height: 44px; padding: 0; border-radius: 50%; display: grid; place-items: center; background: var(--bg); }
+canvas.viz { display: block; width: 100%; flex: 1 1 auto; min-height: 0; }
+.stage .pads { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(min(var(--n, 4), 8), 1fr); grid-auto-rows: 1fr; gap: 10px; padding-top: 46px; }
+.stage .pads .beat { aspect-ratio: auto; height: auto; max-height: none; min-height: 0; border-radius: 16px; font-size: clamp(16px, 3vw, 28px); padding: 10px 12px; }
+.stage .pads .beat::before { top: 12px; left: 12px; right: 12px; height: 6px; }
+.stage .pads.compact { flex: none; grid-auto-rows: auto; grid-template-columns: repeat(min(var(--n, 4), 12), 1fr); gap: 6px; padding-top: 0; }
+.stage .pads.compact .beat { height: 40px; font-size: 14px; padding: 4px 8px; align-items: center; border-radius: 10px; }
+.stage .pads.compact .beat::before { top: 6px; left: 8px; right: 8px; height: 3px; }
+.stage .dots { flex: none; }
+.stage .banner { position: absolute; left: 16px; top: 18px; }
+
+.transport { display: flex; flex-direction: column; gap: 6px; }
+.tempo { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.step { width: 48px; height: 48px; flex: none; padding: 0; border-radius: 50%; font: 500 20px var(--cond); background: var(--face); }
+.step:first-child, .step:last-child { width: 44px; height: 44px; font-size: 14px; color: var(--quiet); border-color: transparent; background: none; }
+.bpm-c { text-align: center; min-width: 120px; }
+.bpm-num { width: 3.2ch; border: 0; background: none; text-align: center; padding: 0; font: 600 56px/1 var(--cond); letter-spacing: -.02em; color: var(--ink); -moz-appearance: textfield; }
+.bpm-num::-webkit-outer-spin-button, .bpm-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.tempo-meta { display: flex; justify-content: center; gap: 10px; color: var(--quiet); font-size: 14px; }
+.tempo-meta span + span::before { content: ''; display: inline-block; width: 1px; height: 11px; background: var(--hair); margin-right: 10px; }
+.slider-c { padding: 0 4px; }
+
+.settings { display: grid; grid-template-columns: 1fr; gap: 0; border-top: 1px solid var(--hair); }
+.field { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 6px 0; border-bottom: 1px solid var(--hair); flex-wrap: wrap; }
+.field .fl { font-weight: 500; }
+.fc, .fc-sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.field.off { opacity: .45; }
+.field.links { justify-content: flex-end; border-bottom: 0; }
+select.sel { -webkit-appearance: none; appearance: none; min-height: 40px; padding: 0 34px 0 12px; border-radius: 10px; font-weight: 500;
+  background: var(--face) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2366695f' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 12px center; }
+select.sel.sm { padding-right: 28px; }
+.field input[type=range] { width: 120px; }
+.sw-val { font: 600 16px var(--cond); min-width: 44px; text-align: right; }
+
+/* desktop & landscape tablets: the whole tab in one screen, the stage takes what is left */
+@media (min-width: 900px) and (min-height: 600px) and (orientation: landscape), (min-width: 1100px) and (min-height: 600px) {
+  .wrap:has(#tab-pulse:not([hidden])) { padding-bottom: 0; }
+  .metro { height: calc(100svh - var(--top-h, 73px) - 8px); padding: 4px 0 14px; gap: 12px; }
+  .stage { flex: 1 1 auto; height: auto; min-height: 220px; padding: 18px; }
+  .transport { flex-direction: row; align-items: center; gap: 20px; }
+  .tempo { flex: none; }
+  .slider-c { flex: 1; }
+  .transport .run-row { position: static; padding: 0; flex: none; }
+  .transport .start { min-width: 200px; min-height: 56px; }
+  .transport .run-row .tap { min-height: 56px; }
+  .settings { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 28px; border-top: 0; }
+  .field.poly-field { grid-column: span 2; }
+  .field input[type=range] { width: 96px; }
+  .field { display: grid; grid-template-rows: auto auto; align-content: start; justify-content: stretch; gap: 6px; min-height: 0; padding: 10px 0; border-bottom: 0; border-top: 1px solid var(--hair); }
+  .field .fl { font-size: 13px; color: var(--quiet); }
+  .fc, .fc-sub { justify-content: flex-start; flex-wrap: nowrap; }
+  .field.links { grid-column: auto; display: flex; align-items: flex-end; justify-content: flex-end; padding: 10px 0; }
+  .field.links .btn { min-height: 32px; font-size: 14px; }
+  .fc .btn.sm { white-space: nowrap; }
+}
+@media (min-width: 760px) {
+  .bpm-num { font-size: 64px; }
+  .step { width: 56px; height: 56px; font-size: 24px; }
+  .stage .pads.compact .beat { height: 48px; }
+}
+
+/* portrait tablets: also one screen — stage flexes, settings in two columns */
+@media (min-width: 760px) and (min-height: 1000px) and (orientation: portrait) {
+  .wrap:has(#tab-pulse:not([hidden])) { padding-bottom: 0; }
+  .metro { height: calc(100svh - var(--top-h, 73px) - 8px); padding: 4px 0 14px; }
+  .stage { flex: 1 1 auto; height: auto; min-height: 320px; }
+  .transport .run-row { position: static; }
+  .settings { grid-template-columns: 1fr 1fr; gap: 0 28px; }
+  .field.links { grid-column: 1 / -1; }
+}
+
+/* polyrhythm second layer in the pads display: a shorter red row under the beats */
+.stage .pads:has(+ .poly-pads:not([hidden])) { flex: 1.6 1 0; }
+.stage .poly-pads { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: repeat(min(var(--n, 3), 8), 1fr); grid-auto-rows: 1fr; gap: 10px; padding-top: 0; }
+.stage .poly-pads .beat { aspect-ratio: auto; height: auto; max-height: none; min-height: 0; border-radius: 16px; font-size: clamp(14px, 2.4vw, 24px); padding: 8px 12px; color: var(--led); background: var(--bg); }
+.stage .poly-pads .beat::before { top: 10px; left: 12px; right: 12px; height: 5px; background: var(--led-off); }
+.stage .poly-pads .beat.l2::before { background: var(--led); }
+.stage .poly-pads .beat.cur { background: var(--led); color: #fff; }
+.stage .poly-pads .beat.cur::before { background: #fff; }
+
+/* count-out-loud toggle on the transport bar */
+.voice-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 56px; border-radius: 14px; padding: 0 16px; white-space: nowrap; }
+.voice-btn[aria-pressed="true"] { background: var(--sel); border-color: var(--sel); color: var(--sel-ink); }
+.voice-btn .vi { display: inline-flex; }
+@media (max-width: 420px) { .voice-btn { padding: 0 12px; } }
+
+/* counting strip: shown under the tempo bar while "Đếm số" is on */
+.count-strip { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding: 10px 14px; border-radius: 14px; background: var(--face); box-shadow: inset 0 0 0 1px var(--hair); }
+.count-title { font-weight: 600; }
+.count-opts { display: flex; gap: 8px; flex-wrap: wrap; }
+.count-opt { min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--hair); background: var(--bg); color: var(--ink); font: 600 16px var(--cond); letter-spacing: .04em; white-space: nowrap; }
+.count-opt[aria-checked="true"] { background: var(--sel); border-color: var(--sel); color: var(--sel-ink); }
+.count-accent { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; font-size: 14px; color: var(--quiet); }
+.count-hint { flex: 1; }
+/* group boundaries in the pads: a divider in the gap before each group start (pads keep equal widths) */
+.stage .pads .beat.gs::after { content: ''; position: absolute; left: -6px; top: 15%; bottom: 15%; width: 2px; border-radius: 1px; background: var(--quiet); opacity: .5; }
+
+/* beat pads as bars: height = how strong the beat is (accent > normal > soft > muted); tap steps it down */
+.stage .pads .beat { background: none; box-shadow: none; padding: 0; overflow: visible; display: block; }
+.stage .pads .beat::before { content: none; }
+.stage .pads .beat .fill { position: absolute; left: 0; right: 0; bottom: 0; height: 66%; border-radius: 14px; background: var(--ink); opacity: .55;
+  transition: height .28s cubic-bezier(.3, .7, .2, 1), opacity .2s, background-color .08s; }
+.stage .pads .beat.l2 .fill { height: 100%; opacity: .9; }
+.stage .pads .beat.l1 .fill { height: 66%; opacity: .55; }
+.stage .pads .beat.ls .fill { height: 33%; opacity: .32; }
+.stage .pads .beat.l0 .fill { height: 6px; opacity: .45; border-radius: 3px; left: 4px; right: 4px; bottom: 6px; }
+.stage .pads .beat.l0 { box-shadow: inset 0 0 0 2px var(--hair); border-radius: 14px; }
+.stage .pads .beat .n { position: absolute; left: 12px; bottom: 10px; z-index: 1; color: var(--bg); font: 600 clamp(14px, 2.2vw, 22px) var(--cond); }
+.stage .pads .beat.ls .n, .stage .pads .beat.l0 .n { color: var(--quiet); }
+.stage .pads .beat.l0 .n { bottom: 18px; }
+.stage .pads .beat.cur .fill { background: var(--led); opacity: 1; }
+.stage .pads .beat.cur .n { color: #fff; }
+.stage .pads .beat.cur.quiet .fill { background: var(--ink); opacity: .2; }
+.stage .pads .beat:focus-visible { outline-offset: 3px; }
+.stage .pads.compact .beat { height: 44px; }
+.stage .pads.compact .beat .fill { border-radius: 8px; }
+.stage .pads.compact .beat.l0 .fill { height: 3px; bottom: 4px; }
+.stage .pads.compact .beat .n { left: 8px; bottom: 4px; font-size: 13px; }
+.stage .pads.compact .beat.l0 .n { bottom: 8px; }
+@media (prefers-reduced-motion: reduce) { .stage .pads .beat .fill { transition: none; } }

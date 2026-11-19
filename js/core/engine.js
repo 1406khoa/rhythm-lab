@@ -9,7 +9,7 @@
   const LOOKAHEAD = 0.12, TICK_MS = 25, QUEUE_MAX = 400;
 
   const bus = RT.util.bus();
-  let ctx = null, timer = 0, raf = 0, cur = null, lead = 0, startSeq = 0;
+  let ctx = null, master = null, timer = 0, raf = 0, cur = null, lead = 0, startSeq = 0;
   // cur = the beat being scheduled: { pos, t0, done } (done = how many of its events are already in Web Audio)
   const queue = [];
 
@@ -18,9 +18,10 @@
     on: bus.on, off: bus.off,
     get ctx() { return ctx; },
     now: () => (ctx ? ctx.currentTime : 0),
+    masterLevel: () => (master ? master.gain.value : null),
 
     ensureCtx() {
-      if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+      if (!ctx) { ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' }); master = ctx.createGain(); master.connect(ctx.destination); }
       return ctx.state === 'suspended' ? ctx.resume() : Promise.resolve();
     },
 
@@ -35,7 +36,9 @@
       E.cfg = cfg;
       RT.voices.resetVoiceState();
       lead = cfg.voice ? RT.voices.maxOnset() : 0; // vocal starts earlier than its beat
-      cur = { pos: { gIdx: 0, barIdx: 0, beat: 0 }, t0: ctx.currentTime + 0.06 + lead, done: 0 };
+      // full level like a hardware click; when sounds stack (voice or a second layer) leave headroom so they never clip
+      master.gain.value = cfg.voice || (cfg.poly && cfg.poly.on && !cfg.test) ? 0.55 : 1;
+      cur = { pos: { gIdx: 0, barIdx: 0, beat: 0 }, t0: ctx.currentTime + 0.1 + lead, done: 0 }; // 100 ms: lets a sleeping output device wake before beat 1 (kept < LOOKAHEAD so beat 1 is committed at once)
       queue.length = 0;
       E.running = true;
       RT.log.note('engine', { state: 'start', bpm: RT.events.effBpm(cfg), click: cfg.click, voice: cfg.voice, sr: ctx.sampleRate, baseLatency: ctx.baseLatency, outLatency: ctx.outputLatency || 0, lead });
@@ -57,7 +60,7 @@
 
   function schedule(ev, dur) {
     const startAt = RT.voices.startFor(ev), now = ctx.currentTime;
-    const r = RT.voices.play(ctx, ctx.destination, ev, E.muted);
+    const r = RT.voices.play(ctx, master, ev, E.muted);
     if (r && r.cut) RT.log.warn('vocal overlap: previous word faded out', { g: ev.gIdx, sub: ev.sub, beatMs: +(dur * 1000).toFixed(1) });
     RT.log.sched(ev, now, startAt);
     bus.emit('schedule', ev, dur);

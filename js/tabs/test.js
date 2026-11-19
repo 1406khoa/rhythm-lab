@@ -43,6 +43,7 @@
       <div id="t-results" hidden>
         <div class="cap row">Kết quả <span class="grow"></span><b id="t-done" class="mono accent"></b></div>
         <div class="metrics" id="t-metrics"></div>
+        <div class="card"><div class="cap">Bia bắn</div><small>Mỗi chấm là một cú gõ, đi theo chiều kim đồng hồ từ phách 1. Càng gần tâm càng đúng phách. Chấm đặc: trễ, chấm rỗng: sớm.</small><canvas id="t-target" class="target"></canvas></div>
         <div class="card"><div class="cap">Độ lệch từng phách so với phách chuẩn</div><small>Trong ±15 ms: đúng phách · ±15–35 ms: hơi sớm/trễ · ngoài ±35 ms: lệch rõ</small><div class="chart"><canvas id="t-c1"></canvas></div></div>
         <div class="card"><div class="cap">Khoảng cách giữa hai lần gõ liên tiếp</div><small>Đường đứt là khoảng cách chuẩn ở nhịp độ đã chọn</small><div class="chart"><canvas id="t-c2"></canvas></div></div>
         <div class="card"><div class="cap row">Dữ liệu cho AI phân tích <span class="grow"></span><button id="t-copy" class="btn sm">Sao chép</button></div>
@@ -169,10 +170,32 @@
     const m = [['Độ dao động (σ)', fmt(a.jitter), 'Càng nhỏ càng đều'], ['Lệch trung bình', fmt(a.mean, 1, 1), 'Âm là sớm, dương là trễ'], ['Trôi nhịp độ', fmt(a.drift, 1, 1), 'Cuối bài so với đầu bài'],
       ['Biên độ lệch', a.range.toFixed(0) + ' ms', 'Từ sớm nhất tới trễ nhất'], ['Số lần khựng', String(a.freeze), 'Khoảng gõ dài hơn 1,5 phách'], ['Xếp hạng', GRADE_VI[a.grade] || a.grade, 'Đồng hồ nội tại']];
     $.metrics.replaceChildren(...m.map(([t, v, s]) => h('div', { class: 'metric' }, h('small', {}, t), h('b', { class: 'mono' }, v), h('small', {}, s))));
+    drawTarget($.target, a.offsets);
     renderCharts(a);
     $.payload.value = payload(a);
     setTimeout(() => $.results.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
   }
+
+  // dartboard: radius = |offset| (rings at 15 / 35 / 60 ms), angle = hit order, filled = late, hollow = early
+  function drawTarget(cv, offsets) {
+    const css = getComputedStyle(document.documentElement), col = (n) => css.getPropertyValue(n).trim();
+    const dpr = Math.min(2, window.devicePixelRatio || 1), W = cv.clientWidth || 320, H = cv.clientHeight || 320;
+    cv.width = W * dpr; cv.height = H * dpr;
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+    const cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.44, MAX = 80, rad = (ms) => (Math.min(Math.abs(ms), MAX) / MAX) * R;
+    [[60, col('--hair')], [35, col('--warn')], [15, col('--ok')]].forEach(([ms, c]) => {
+      g.beginPath(); g.arc(cx, cy, rad(ms), 0, Math.PI * 2); g.strokeStyle = c; g.lineWidth = 1.5; g.stroke();
+      g.fillStyle = col('--quiet'); g.font = '12px Barlow, sans-serif'; g.textAlign = 'left'; g.fillText(ms + ' ms', cx + rad(ms) * 0.72 + 4, cy - rad(ms) * 0.72);
+    });
+    g.beginPath(); g.moveTo(cx - 6, cy); g.lineTo(cx + 6, cy); g.moveTo(cx, cy - 6); g.lineTo(cx, cy + 6); g.strokeStyle = col('--ink'); g.lineWidth = 1.5; g.stroke();
+    offsets.forEach((ms, i) => {
+      const a = -Math.PI / 2 + (i / offsets.length) * Math.PI * 2, r = rad(ms), x = cx + r * Math.cos(a), y = cy + r * Math.sin(a);
+      const c = Math.abs(ms) <= 15 ? col('--ok') : Math.abs(ms) <= 35 ? col('--warn') : col('--led');
+      g.beginPath(); g.arc(x, y, 5, 0, Math.PI * 2);
+      if (ms >= 0) { g.fillStyle = c; g.fill(); } else { g.strokeStyle = c; g.lineWidth = 2; g.stroke(); }
+    });
+  }
+  T.drawTarget = drawTarget;
 
   function renderCharts(a) {
     if (typeof Chart === 'undefined') return;

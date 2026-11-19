@@ -26,6 +26,7 @@ const SHELL = [
   "js/core/util.js",
   "js/core/voices.js",
   "js/vendor/chart.umd.min.js",
+  "js/viz.js",
   "fonts/barlow-400-latin-ext.woff2",
   "fonts/barlow-400-latin.woff2",
   "fonts/barlow-400-vietnamese.woff2",
