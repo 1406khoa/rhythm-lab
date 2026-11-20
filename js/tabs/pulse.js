@@ -23,6 +23,8 @@
   const polyChoices = (num) => Array.from({ length: 11 }, (_, i) => i + 2).filter((m) => polyValid(m, num)).map((m) => [m, m + ' nốt trên ' + num + ' phách']);
   const defaultPoly = (num) => [3, 2, 4, 5, 7, 8, 9].find((m) => polyValid(m, num)) || 3;
   const ICONS = { // 24px line icons for the display-mode switch
+    hammer: '<rect x="12" y="3" width="9" height="6" rx="1.5" transform="rotate(35 16.5 6)"/><path d="M13.5 9 5 20.5"/>',
+    paddle: '<ellipse cx="10" cy="9" rx="6" ry="6.5"/><rect x="8" y="15.5" width="4" height="6" rx="1.5"/><circle cx="19" cy="15" r="2.2"/>',
     pads: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
     polygon: '<path d="M12 3 21 9.5 17.5 20h-11L3 9.5Z"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 12 17 8"/>',
@@ -152,8 +154,7 @@
 
   function cycleMode() {
     const ids = RT.viz.MODES.map(([id]) => id), next = ids[(ids.indexOf(cfg.viz) + 1) % ids.length];
-    cfg.viz = next; RT.state.changed('viz');
-    ui.toast(RT.viz.MODES.find(([id]) => id === next)[1]);
+    cfg.viz = next; RT.state.changed('viz'); // no toast: the picture itself says what changed
   }
 
   function setSub(id) {

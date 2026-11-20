@@ -18,7 +18,7 @@
     if (!(cfg.poly.n >= 1)) cfg.poly.n = 1;
     if (typeof cfg.vocal.accent !== 'boolean') cfg.vocal.accent = true;
     if (!cfg.challenge || typeof cfg.challenge !== 'object') cfg.challenge = d.challenge;
-    if (!['pads', 'polygon', 'clock', 'ball', 'pendulum', 'lane'].includes(cfg.viz)) cfg.viz = d.viz;
+    if (!['pads', 'hammer', 'paddle', 'polygon', 'clock', 'ball', 'pendulum', 'lane'].includes(cfg.viz)) cfg.viz = d.viz;
   } // a stale/corrupt blob falls back to defaults instead of crashing init
   cfg.test = null;
   cfg.seed = 1;

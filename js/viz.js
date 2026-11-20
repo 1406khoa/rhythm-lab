@@ -1,9 +1,10 @@
-/* Beat visualisations on one canvas: polygon, clock, bouncing ball, pendulum, scrolling lane.
+/* Beat visualisations on one canvas: polygon, clock, bouncing ball, pendulum, scrolling lane, plus the drawn
+ * objects (hammer, paddle ball) from js/viz-objects.js.
  * Motion is computed every frame from the AUDIO clock (the engine's scheduled beat times), so the picture
  * stays locked to the click. Drawing runs only while the canvas is on screen and a visual mode is chosen. */
 (function () {
   const RT = (window.RT = window.RT || {});
-  const MODES = [['pads', 'Ô phách'], ['polygon', 'Đa giác'], ['clock', 'Đồng hồ'], ['ball', 'Bóng nảy'], ['pendulum', 'Con lắc'], ['lane', 'Dòng nhịp']];
+  const MODES = [['pads', 'Ô phách'], ['hammer', 'Búa đóng đinh'], ['paddle', 'Vợt bóng dây'], ['polygon', 'Đa giác'], ['clock', 'Đồng hồ'], ['ball', 'Bóng nảy'], ['pendulum', 'Con lắc'], ['lane', 'Dòng nhịp']];
   const TAU = Math.PI * 2;
 
   // ---------- geometry (pure, tested) ----------
@@ -226,13 +227,14 @@
     g.strokeStyle = C.led; g.lineWidth = 3; g.beginPath(); g.moveTo(hit, H * 0.06); g.lineTo(hit, H * 0.94); g.stroke();
   }
 
-  const DRAW = { polygon: drawPolygon, clock: drawClock, ball: drawBall, pendulum: drawPendulum, lane: drawLane };
+  const DRAW = { polygon: drawPolygon, clock: drawClock, ball: drawBall, pendulum: drawPendulum, lane: drawLane,
+    hammer: (...a) => RT.vizObjects.hammer(...a), paddle: (...a) => RT.vizObjects.paddle(...a) };
 
   // snapshot of what to draw
   function stateFor(cfg, T) {
     const cur = T && T.cur, num = cur ? cur.num : RT.events.barInfo(cfg, 0).num;
     const levels = cfg.levels;
-    const S = { cfg, running: !!T, b: cur ? cur.beat : 0, phase: T ? T.phase : 0, played: cur ? cur.played : true, num, levels, n: RT.events.subCount(cfg),
+    const S = { cfg, running: !!T, g: cur ? cur.gIdx : 0, bar: cur ? cur.bar : 0, dur: 60 / RT.events.effBpm(cfg), b: cur ? cur.beat : 0, phase: T ? T.phase : 0, played: cur ? cur.played : true, num, levels, n: RT.events.subCount(cfg),
       ratio: cfg.swing.amount / 100, subMask: cfg.subMask, groupStarts: cfg.voice ? RT.syllables.groupStarts(cfg.vocal.grouping, num) : null, poly: null };
     if (cfg.poly && cfg.poly.on) {
       const m = RT.util.clamp(cfg.poly.m | 0, 2, 16), p = ((S.b + S.phase) / num) * m, j = Math.min(m - 1, Math.floor(p + 1e-9));
