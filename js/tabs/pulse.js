@@ -91,7 +91,13 @@
       onclick: () => { cfg.followBeatMute = !cfg.followBeatMute; RT.state.changed('follow'); } }, 'Câm theo phách');
     // count-out-loud: a round toggle right of Start
     els.voice = h('button', { class: 'btn voice-btn', 'aria-pressed': String(!!cfg.voice), 'aria-label': 'Đếm số', 'data-tip': 'Đếm số: giọng đọc 1 2 3 4 trên mỗi phách',
-      onclick: () => { cfg.voice = !cfg.voice; RT.state.changed('voice'); ui.toast(cfg.voice ? 'Đã bật đếm số' : 'Đã tắt đếm số'); } },
+      onclick: () => {
+        cfg.voice = !cfg.voice; RT.state.changed('voice');
+        RT.voices.ready.then(() => { // a browser that cannot decode the samples must say so, not stay silent
+          if (cfg.voice && !RT.voices.hasVocal()) ui.toast('Máy này không phát được giọng đếm, chỉ có tiếng click', 'err');
+          else ui.toast(cfg.voice ? 'Đã bật đếm số' : 'Đã tắt đếm số');
+        });
+      } },
       h('span', { class: 'vi', 'aria-hidden': 'true' }));
     els.voice.querySelector('.vi').innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9Z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
     els.voice.set = (v) => els.voice.setAttribute('aria-pressed', String(!!v));

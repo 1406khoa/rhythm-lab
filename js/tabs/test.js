@@ -9,7 +9,7 @@
   const cfg = Object.assign(RT.events.defaults(), { bpm: 60, test: { countIn: T.countIn, silent: true } });
   T.cfg = cfg;
   let state = 'idle'; // idle | countin | recording | completed
-  let taps = [], grid = [], startT = 0, charts = {}, last = null;
+  let taps = [], grid = [], startT = 0, last = null;
   const $ = {};
 
   const HTML = `
@@ -68,6 +68,8 @@
     RT.engine.on('schedule', onSchedule);
     RT.engine.on('draw', onDraw);
     RT.engine.on('state', (run) => { if (!run && RT.engine.cfg === cfg) { if (state !== 'completed') state = 'idle'; setStart(false); } });
+    // the pictures are canvases: redraw them when the results change width (rotate, resize)
+    if (window.ResizeObserver) new ResizeObserver(() => { if (last && !$.results.hidden) { drawTarget($.target, last.offsets); renderCharts(last); } }).observe($.results);
   }
 
   function setBpm(v) { cfg.bpm = clamp(Math.round(v), 40, 240); $.bpm.value = $.slider.value = cfg.bpm; }
@@ -151,6 +153,7 @@
     return { offsets, itis, mean, jitter, drift, min, max, range: max - min, freeze, grade, target };
   }
   T.analyze = analyze;
+  T._show = (a) => { last = a; showResults(a); }; // self-test hook: render results from given numbers
 
   function complete() {
     state = 'completed';
@@ -198,25 +201,50 @@
   }
   T.drawTarget = drawTarget;
 
+  // A small themed chart on a canvas (replaces a 200 KB chart library used for just these two pictures):
+  // y grid + ticks, x ticks, axis titles, dashed guide lines, then the series painted by o.paint.
+  // ponytail: no hover tooltips; the exact values are in the "Dữ liệu cho AI phân tích" box below.
+  function chart(cv, o) {
+    const css = getComputedStyle(document.documentElement), col = (n) => css.getPropertyValue(n).trim();
+    const dpr = Math.min(2, window.devicePixelRatio || 1), W = cv.clientWidth || 600, H = cv.clientHeight || 240;
+    cv.width = W * dpr; cv.height = H * dpr;
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+    const L = 48, R = 8, T0 = 10, B = 40, pw = W - L - R, ph = H - T0 - B;
+    const raw = (o.max - o.min) / 5, p10 = 10 ** Math.floor(Math.log10(raw)), m = raw / p10, step = (m <= 1.5 ? 1 : m <= 3 ? 2 : m <= 7 ? 5 : 10) * p10; // a round step, about 5-8 grid lines
+    const y0 = Math.floor(o.min / step) * step, y1 = Math.ceil(o.max / step) * step;
+    const X = (i) => L + ((i + 0.5) / o.n) * pw, Y = (v) => T0 + (1 - (v - y0) / (y1 - y0)) * ph;
+    g.font = '11px Barlow, sans-serif'; g.fillStyle = col('--quiet'); g.strokeStyle = col('--hair'); g.lineWidth = 1; g.textBaseline = 'middle';
+    g.textAlign = 'right';
+    for (let v = y0; v <= y1 + step / 2; v += step) { g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(W - R, Y(v)); g.stroke(); g.fillText(String(Math.round(v)), L - 8, Y(v)); }
+    g.textAlign = 'center';
+    const every = Math.max(1, Math.ceil(o.n / Math.floor(pw / o.tickW)));
+    for (let i = 0; i < o.n; i += every) g.fillText(o.tick(i), X(i), T0 + ph + 12);
+    g.font = '12px Barlow, sans-serif';
+    g.fillText(o.xTitle, L + pw / 2, H - 8);
+    g.save(); g.translate(11, T0 + ph / 2); g.rotate(-Math.PI / 2); g.fillText(o.yTitle, 0, 0); g.restore();
+    for (const [v, color, dash, width] of o.guides) { g.setLineDash(dash); g.strokeStyle = color; g.lineWidth = width || 1; g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(W - R, Y(v)); g.stroke(); }
+    g.setLineDash([]);
+    o.paint(g, X, Y, pw / o.n, col);
+  }
+
   function renderCharts(a) {
-    if (typeof Chart === 'undefined') return;
-    Object.values(charts).forEach((c) => c.destroy());
-    const labels = a.offsets.map((_, i) => i + 1);
-    // colours come from the theme tokens (light/dark), '66' = 40% alpha on the 6-digit hex
-    const css = getComputedStyle(document.documentElement), col = (n) => css.getPropertyValue(n).trim(), a40 = (n) => col(n) + '66';
-    const OK = col('--ok'), WARN = col('--warn'), BAD = col('--led'), INK = col('--ink');
-    Chart.defaults.font.family = 'Barlow, sans-serif';
-    Object.assign(Chart.defaults.plugins.tooltip, { backgroundColor: INK, titleColor: col('--bg'), bodyColor: col('--bg'), cornerRadius: parseInt(col('--r'), 10) || 12, padding: 10, displayColors: false });
-    const axis = (title, x) => ({ title: { display: true, text: title, color: col('--quiet') }, ticks: { color: col('--quiet'), font: { size: 11 } }, grid: { color: col('--hair') }, border: { color: col('--hair') }, ...x });
-    const line = (v, c) => ({ data: Array(labels.length).fill(v), borderColor: c, borderDash: [3, 3], borderWidth: 1, pointRadius: 0 });
-    charts.c1 = new Chart($.c1.getContext('2d'), { type: 'line', data: { labels, datasets: [{
-      data: a.offsets.map((v) => +v.toFixed(1)), borderColor: INK, borderWidth: 2, tension: 0.15, pointRadius: 4, pointBorderWidth: 0,
-      pointBackgroundColor: a.offsets.map((o) => (Math.abs(o) <= 15 ? OK : Math.abs(o) <= 35 ? WARN : BAD)) },
-      line(0, OK), line(15, a40('--ok')), line(-15, a40('--ok')), line(35, a40('--warn')), line(-35, a40('--warn'))] },
-      options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false } }, scales: { x: axis('Phách'), y: axis('Độ lệch (ms)', { suggestedMin: -60, suggestedMax: 60 }) } } });
-    charts.c2 = new Chart($.c2.getContext('2d'), { type: 'bar', data: { labels: a.itis.map((_, i) => i + 1 + '→' + (i + 2)), datasets: [{ data: a.itis.map((v) => +v.toFixed(1)), backgroundColor: a40('--ok'), borderColor: OK, borderWidth: 1, borderRadius: 4 },
-      { type: 'line', data: Array(a.itis.length).fill(a.target), borderColor: INK, borderDash: [4, 4], borderWidth: 1.5, pointRadius: 0 }] },
-      options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false } }, scales: { x: axis('Cặp phách'), y: axis('Khoảng cách (ms)', { suggestedMin: a.target - 100, suggestedMax: a.target + 100 }) } } });
+    const css = getComputedStyle(document.documentElement), col = (n) => css.getPropertyValue(n).trim(), a40 = (n) => col(n) + '66'; // '66' = 40% alpha
+    const band = (o) => (Math.abs(o) <= 15 ? '--ok' : Math.abs(o) <= 35 ? '--warn' : '--led');
+    chart($.c1, { n: a.offsets.length, min: Math.min(-60, ...a.offsets), max: Math.max(60, ...a.offsets), xTitle: 'Phách', yTitle: 'Độ lệch (ms)', tick: (i) => String(i + 1), tickW: 26,
+      guides: [[0, col('--ok'), [3, 3]], [15, a40('--ok'), [3, 3]], [-15, a40('--ok'), [3, 3]], [35, a40('--warn'), [3, 3]], [-35, a40('--warn'), [3, 3]]],
+      paint(g, X, Y) {
+        g.strokeStyle = col('--ink'); g.lineWidth = 2; g.lineJoin = 'round'; g.beginPath();
+        a.offsets.forEach((v, i) => (i ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v)))); g.stroke();
+        a.offsets.forEach((v, i) => { g.fillStyle = col(band(v)); g.beginPath(); g.arc(X(i), Y(v), 4, 0, Math.PI * 2); g.fill(); });
+      } });
+    chart($.c2, { n: a.itis.length, min: Math.min(a.target - 100, ...a.itis), max: Math.max(a.target + 100, ...a.itis), xTitle: 'Cặp phách', yTitle: 'Khoảng cách (ms)', tick: (i) => i + 1 + '→' + (i + 2), tickW: 46,
+      guides: [],
+      paint(g, X, Y, w) {
+        const base = Y(Math.min(a.target - 100, ...a.itis)), bw = Math.max(2, w * 0.7);
+        g.fillStyle = a40('--ok'); g.strokeStyle = col('--ok'); g.lineWidth = 1;
+        a.itis.forEach((v, i) => { const y = Y(v); g.beginPath(); g.rect(X(i) - bw / 2, Math.min(y, base), bw, Math.abs(base - y)); g.fill(); g.stroke(); });
+        g.setLineDash([4, 4]); g.strokeStyle = col('--ink'); g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(0) - w / 2, Y(a.target)); g.lineTo(X(a.itis.length - 1) + w / 2, Y(a.target)); g.stroke(); g.setLineDash([]);
+      } });
   }
 
   function payload(a) {
@@ -235,7 +263,6 @@
 
   function reset() {
     stopRun(); state = 'idle'; taps = []; grid = []; last = null;
-    Object.values(charts).forEach((c) => c.destroy()); charts = {};
     $.hits.textContent = '0/' + T.hits + ' phách'; $.progress.style.width = '0%'; $.phase.textContent = 'Sẵn sàng';
     $.big.textContent = '–'; $.big.className = 'big'; $.instr.textContent = 'Chạm vào đây để bắt đầu';
     $.sub.textContent = '8 phách đếm vào có click. Từ phách thứ 9 click tắt hẳn, bạn tự gõ đủ 64 phách theo đồng hồ nội tại.';

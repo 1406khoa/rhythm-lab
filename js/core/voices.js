@@ -3,7 +3,7 @@
 (function () {
   const RT = (window.RT = window.RT || {});
 
-  const buffers = {};   // '1'..'12','e','and','a' -> AudioBuffer
+  const buffers = {};   // '1'..'12' -> AudioBuffer (FLAC samples from tools/build-samples.py)
   const onsets = {};    // perceptual onset (s) from tools/build-samples.py
   let lastVoice = null; // { gain, end } of the previous vocal sample, to cut overlaps
 
@@ -13,7 +13,7 @@
     const data = RT.VOCAL || {};
     const dec = new OfflineAudioContext(1, 1, 44100);
     await Promise.all(Object.entries(data).map(async ([k, v]) => {
-      buffers[k] = await dec.decodeAudioData(b64ToBytes(v.wav));
+      buffers[k] = await dec.decodeAudioData(b64ToBytes(v.flac));
       onsets[k] = v.onset;
     }));
   })().catch((e) => { console.error('vocal samples failed to decode', e); });

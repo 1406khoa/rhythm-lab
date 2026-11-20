@@ -1,71 +1,49 @@
-/* Offline support: the first online visit stores the whole app; after that it opens without a network.
- * Strategy: serve from cache at once, refresh the cached copy in the background (stale-while-revalidate),
- * so a new deploy shows up on the next launch. Bump VERSION only to force-drop old caches. */
-const VERSION = 'v2';
-const CACHE = 'rhythm-lab-' + VERSION;
-const SHELL = [
-  "./",
-  "index.html",
-  "manifest.webmanifest",
-  "favicon.svg",
-  "css/app.css",
-  "css/fonts.css",
-  "js/app.js",
-  "js/logpanel.js",
-  "js/ui.js",
-  "js/vocal-samples.js",
-  "js/tabs/practice.js",
-  "js/tabs/pulse.js",
-  "js/tabs/test.js",
-  "js/challenge.js",
-  "js/core/engine.js",
-  "js/core/events.js",
-  "js/core/log.js",
-  "js/core/state.js",
-  "js/core/syllables.js",
-  "js/core/util.js",
-  "js/core/voices.js",
-  "js/vendor/chart.umd.min.js",
-  "js/viz.js",
-  "fonts/barlow-400-latin-ext.woff2",
-  "fonts/barlow-400-latin.woff2",
-  "fonts/barlow-400-vietnamese.woff2",
-  "fonts/barlow-500-latin-ext.woff2",
-  "fonts/barlow-500-latin.woff2",
-  "fonts/barlow-500-vietnamese.woff2",
-  "fonts/barlow-600-latin-ext.woff2",
-  "fonts/barlow-600-latin.woff2",
-  "fonts/barlow-600-vietnamese.woff2",
-  "fonts/barlow-condensed-500-latin-ext.woff2",
-  "fonts/barlow-condensed-500-latin.woff2",
-  "fonts/barlow-condensed-500-vietnamese.woff2",
-  "fonts/barlow-condensed-600-latin-ext.woff2",
-  "fonts/barlow-condensed-600-latin.woff2",
-  "fonts/barlow-condensed-600-vietnamese.woff2",
-  "icons/apple-touch-icon.png",
-  "icons/icon-192.png",
-  "icons/icon-512.png",
-  "icons/icon-maskable-512.png"
-];
+/* Offline support, built so that opening the app costs the host (almost) nothing.
+ *
+ * - Everything is answered from this device's cache, with no revalidation: a repeat visit makes ONE request
+ *   (the browser's own check for a newer sw.js) instead of one per file.
+ * - A new deploy = a new sw.js (tools/build.js writes the three constants below). On install it copies every
+ *   file whose content hash did not change from the previous cache and downloads only the rest, so an update
+ *   costs a user 2 requests (sw.js + index.html), not the whole app again.
+ * - The new version shows on the next launch (the open page keeps the files it started with).
+ *
+ * Unbuilt (FILES empty, e.g. the source tree on localhost) this worker does nothing. */
+const BUILD = 'dev';
+const FILES = {};      // url -> content hash ('' = the hash is already in the file name, see a/ in the build output)
+const PRECACHE = [];   // downloaded at install; other FILES (icons) are cached the first time something asks for them
 
-self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
-});
+const CACHE = 'rl-' + BUILD;
+const key = (u) => new URL(u + (FILES[u] ? '?v=' + FILES[u] : ''), self.registration.scope).href;
 
-self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys()
-    .then((keys) => Promise.all(keys.filter((k) => k.startsWith('rhythm-lab-') && k !== CACHE).map((k) => caches.delete(k))))
-    .then(() => self.clients.claim()));
-});
+self.addEventListener('install', (e) => e.waitUntil((async () => {
+  const cache = await caches.open(CACHE);
+  await Promise.all(Object.keys(FILES).map(async (u) => {
+    const had = await caches.match(key(u)); // same url + same hash in an older cache = same bytes
+    if (had) return cache.put(key(u), had);
+    if (!PRECACHE.includes(u)) return;
+    // hashed names never change, so the copy the page just loaded (HTTP cache) is good; the others are revalidated
+    const res = await fetch(new Request(u, { cache: FILES[u] ? 'no-cache' : 'default' }));
+    if (!res.ok) throw new Error('precache failed: ' + u + ' ' + res.status); // install fails, the old version keeps serving
+    return cache.put(key(u), res);
+  }));
+  await self.skipWaiting();
+})()));
+
+self.addEventListener('activate', (e) => e.waitUntil(caches.keys()
+  .then((keys) => Promise.all(keys.filter((k) => (k.startsWith('rl-') && k !== CACHE) || k.startsWith('rhythm-lab-')).map((k) => caches.delete(k))))
+  .then(() => self.clients.claim())));
 
 self.addEventListener('fetch', (e) => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== location.origin) return;
+  const scope = new URL(self.registration.scope).pathname;
+  const u = req.mode === 'navigate' ? './' : url.pathname.slice(scope.length); // any page URL (?log=1, #...) opens the cached app
+  if (!(u in FILES)) return; // not ours: plain network
   e.respondWith(caches.open(CACHE).then(async (cache) => {
-    const key = req.mode === 'navigate' ? './' : req; // any page URL (?log=1, #f=...) opens the cached app
-    const hit = await cache.match(key, { ignoreSearch: true });
-    const fresh = fetch(req).then((res) => { if (res.ok) cache.put(key, res.clone()); return res; }).catch(() => null);
-    if (hit) { e.waitUntil(fresh); return hit; }
-    return (await fresh) || new Response('Offline', { status: 503, statusText: 'Offline' });
+    const hit = await cache.match(key(u));
+    if (hit) return hit;
+    const res = await fetch(req);
+    if (res.ok) cache.put(key(u), res.clone());
+    return res;
   }));
 });
